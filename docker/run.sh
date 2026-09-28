@@ -8,14 +8,8 @@ JAR_FILE_NAME="ani-rss.jar"
 JAR_FILE=$FOLDER$JAR_FILE_NAME
 
 if [ ! -f $JAR_FILE ]; then
-    URL="https://github.com/wushuo894/ani-rss/releases/latest/download/ani-rss.jar"
-    wget -O $JAR_FILE $URL
-
-    if [ $? -eq 0 ]; then
-        echo "$JAR_FILE 下载成功！"
-    else
-        echo "$JAR_FILE 下载失败。"
-    fi
+    echo "$JAR_FILE 不存在，已禁用自动下载官方 jar" >&2
+    exit 1
 fi
 
 stop() {

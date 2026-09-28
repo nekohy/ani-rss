@@ -1,11 +1,8 @@
 package ani.rss.service;
 
-import ani.rss.commons.ExceptionUtils;
 import ani.rss.commons.MavenUtils;
 import ani.rss.entity.About;
-import ani.rss.entity.UpdateInfo;
 import ani.rss.update.BaseUpdate;
-import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.lang.Assert;
 import cn.hutool.core.thread.ThreadUtil;
 import lombok.RequiredArgsConstructor;
@@ -19,10 +16,8 @@ import java.io.File;
 @RequiredArgsConstructor
 public class UpdateService {
 
-    private final GithubService githubService;
-
     /**
-     * 关于
+     * 关于（fork: 已禁用自动更新检测，永远不会替换为上游 jar）
      *
      * @return 关于信息
      */
@@ -35,19 +30,6 @@ public class UpdateService {
                 .setAutoUpdate(false)
                 .setLatest("")
                 .setMarkdownBody("");
-        try {
-            MavenUtils.CurrentFile currentFile = MavenUtils.getCurrentFile();
-
-            String filename = currentFile.isJar() ? "ani-rss.jar" : "ani-rss.exe";
-
-            UpdateInfo updateInfo = githubService.getUpdateInfo("wushuo894", "ani-rss", filename, version);
-
-            BeanUtil.copyProperties(updateInfo, about, "version");
-        } catch (Exception e) {
-            String message = ExceptionUtils.getMessage(e);
-            log.error("检测更新失败 {}", message);
-            log.error(message, e);
-        }
         return about;
     }
 
