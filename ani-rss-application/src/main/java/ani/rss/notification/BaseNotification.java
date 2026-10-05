@@ -7,8 +7,10 @@ import ani.rss.entity.NotificationConfig;
 import ani.rss.enums.NotificationStatusEnum;
 import ani.rss.enums.StringEnum;
 import ani.rss.service.DownloadService;
+import ani.rss.util.other.BgmUtil;
 import ani.rss.util.other.ConfigUtil;
 import ani.rss.util.other.ItemsUtil;
+import ani.rss.util.other.NotificationUtil;
 import ani.rss.util.other.RenameUtil;
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.lang.Opt;
@@ -21,6 +23,7 @@ import wushuo.tmdb.api.entity.Tmdb;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -101,7 +104,10 @@ public interface BaseNotification {
 
         // 集数
         double episode = 1.0;
-        if (ReUtil.contains(StringEnum.SEASON_REG, text)) {
+        Double itemEpisode = NotificationUtil.EPISODE.get();
+        if (Objects.nonNull(itemEpisode)) {
+            episode = itemEpisode;
+        } else if (ReUtil.contains(StringEnum.SEASON_REG, text)) {
             episode = Double.parseDouble(ReUtil.get(StringEnum.SEASON_REG, text, 2));
         }
 
@@ -116,6 +122,14 @@ public interface BaseNotification {
                 NumberFormatUtils.format(episode, 1, 0)
         );
         notificationTemplate = notificationTemplate.replace("${episodeFormat}", episodeFormat);
+
+        if (notificationTemplate.contains("${bgmId}")) {
+            notificationTemplate = notificationTemplate.replace("${bgmId}", BgmUtil.getSubjectId(ani));
+        }
+        notificationTemplate = BgmUtil.replaceShow(notificationTemplate, ani);
+        if (notificationTemplate.contains("${bgmEpisode}")) {
+            notificationTemplate = notificationTemplate.replace("${bgmEpisode}", BgmUtil.getSortFormat(ani, episode));
+        }
 
 
         Date releaseDate = ani.getReleaseDate();

@@ -238,7 +238,7 @@ public class OpenList {
                 openListUtil.fsRemove(savePath, residual);
             }
 
-            NotificationUtil.send(CONFIG, ani,
+            NotificationUtil.send(CONFIG, ani, item.getEpisode(),
                     StrFormatter.format("{} 下载完成", item.getReName()),
                     NotificationStatusEnum.DOWNLOAD_END
             );

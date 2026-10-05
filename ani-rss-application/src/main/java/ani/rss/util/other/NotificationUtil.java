@@ -50,6 +50,24 @@ public class NotificationUtil {
      * @param notificationStatusEnum 通知状态
      */
     public static void send(Config config, Ani ani, String text, NotificationStatusEnum notificationStatusEnum) {
+        send(config, ani, null, text, notificationStatusEnum);
+    }
+
+    /**
+     * 正在发送的通知对应的集数 (订阅解析出的), 用于模板里的 ${episode} ${bgmEpisode}
+     */
+    public static final ThreadLocal<Double> EPISODE = new ThreadLocal<>();
+
+    /**
+     * 发送通知
+     *
+     * @param config                 设置
+     * @param ani                    订阅
+     * @param episode                集数, 没有时为 null
+     * @param text                   通知内容
+     * @param notificationStatusEnum 通知状态
+     */
+    public static void send(Config config, Ani ani, Double episode, String text, NotificationStatusEnum notificationStatusEnum) {
         Boolean isMessage = ani.getMessage();
 
         if (!isMessage) {
@@ -101,10 +119,13 @@ public class NotificationUtil {
                         log.warn("通知失败 正在重试 第{}次 {}", currentRetry, aClass.getName());
                     }
                     try {
+                        EPISODE.set(episode);
                         baseNotification.send(notificationConfig, ani, text, notificationStatusEnum);
                         return;
                     } catch (Exception e) {
                         log.error(e.getMessage(), e);
+                    } finally {
+                        EPISODE.remove();
                     }
                     currentRetry += 1;
                     ThreadUtil.sleep(1000);

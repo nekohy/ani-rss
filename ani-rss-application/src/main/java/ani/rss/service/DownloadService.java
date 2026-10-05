@@ -199,7 +199,7 @@ public class DownloadService {
         if (!master) {
             text = StrFormatter.format("(备用RSS) {}", text);
         }
-        NotificationUtil.send(CONFIG, ani, text, NotificationStatusEnum.DOWNLOAD_START);
+        NotificationUtil.send(CONFIG, ani, item.getEpisode(), text, NotificationStatusEnum.DOWNLOAD_START);
 
         Integer downloadRetry = CONFIG.getDownloadRetry();
         for (int i = 1; i <= downloadRetry; i++) {
@@ -218,7 +218,7 @@ public class DownloadService {
         FileUtil.del(torrentFile);
 
         log.error("{} 添加失败，疑似为坏种", name);
-        NotificationUtil.send(CONFIG, ani,
+        NotificationUtil.send(CONFIG, ani, item.getEpisode(),
                 StrFormatter.format("{} 添加失败，疑似为坏种", name),
                 NotificationStatusEnum.ERROR);
     }
