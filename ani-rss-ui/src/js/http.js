@@ -289,6 +289,12 @@ export let clearCache = () => api.post('api/clearCache')
 export let downloadLoginTest = (config) => api.post('api/downloadLoginTest', config)
 
 /**
+ * OpenList 任务列表 (离线下载, 移动)
+ * @returns {Promise<unknown>}
+ */
+export let openListTasks = () => api.post('api/openListTasks')
+
+/**
  * 获取TG最近消息
  * @param notificationConfig 通知配置
  * @returns {Promise<unknown>}

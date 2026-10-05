@@ -938,17 +938,16 @@ public class BgmUtil {
      * @return 条目列表
      */
     public static List<JsonObject> getSeasonChain(String subjectId) {
-        int max = 40;
         String root = subjectId;
         Set<String> seen = new HashSet<>(Set.of(subjectId));
         String prev;
-        while (seen.size() < max && Objects.nonNull(prev = related(root, "前传")) && seen.add(prev)) {
+        while (Objects.nonNull(prev = related(root, "前传")) && seen.add(prev)) {
             root = prev;
         }
         List<JsonObject> chain = new ArrayList<>();
         seen.clear();
         String current = root;
-        while (Objects.nonNull(current) && seen.size() < max && seen.add(current)) {
+        while (Objects.nonNull(current) && seen.add(current)) {
             JsonObject subject = getSubject(current);
             if (isSeries(subject)) {
                 chain.add(subject);
@@ -987,13 +986,9 @@ public class BgmUtil {
         }
         for (JsonElement element : episodes) {
             JsonObject bgmEpisode = element.getAsJsonObject();
-            JsonElement ep = bgmEpisode.get("ep");
-            JsonElement sort = bgmEpisode.get("sort");
-            if (Objects.isNull(ep) || ep.isJsonNull() || Objects.isNull(sort) || sort.isJsonNull()) {
-                continue;
-            }
-            if (ep.getAsDouble() == episode && sort.getAsDouble() == Math.floor(sort.getAsDouble())) {
-                return String.format("%02d", sort.getAsInt());
+            double sort = bgmEpisode.get("sort").getAsDouble();
+            if (bgmEpisode.get("ep").getAsDouble() == episode && sort == Math.floor(sort)) {
+                return String.format("%02d", (int) sort);
             }
         }
         return format;

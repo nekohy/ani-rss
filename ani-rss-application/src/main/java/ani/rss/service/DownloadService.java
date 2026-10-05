@@ -4,7 +4,6 @@ import ani.rss.commons.ExceptionUtils;
 import ani.rss.commons.FileUtils;
 import ani.rss.commons.GsonStatic;
 import ani.rss.commons.PinyinUtils;
-import ani.rss.download.OpenList;
 import ani.rss.entity.Ani;
 import ani.rss.entity.Config;
 import ani.rss.entity.Item;
@@ -208,12 +207,6 @@ public class DownloadService {
                 if (TorrentUtil.download(ani, item, savePath, torrentFile)) {
                     return;
                 }
-            } catch (OpenList.TaskExistsException e) {
-                // 重试不会成功; 删除种子, 在网盘里删掉任务后下次轮询会重新下载
-                log.error(e.getMessage());
-                FileUtil.del(torrentFile);
-                NotificationUtil.send(CONFIG, ani, e.getMessage(), NotificationStatusEnum.ERROR);
-                return;
             } catch (Exception e) {
                 String message = ExceptionUtils.getMessage(e);
                 log.error(message, e);

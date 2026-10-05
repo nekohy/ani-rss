@@ -47,8 +47,7 @@
         <div class="full-width">
           <el-input v-model.trim="props.config['openListOfflinePath']" placeholder="留空则直接下载到保存位置"/>
           <el-text class="mx-1" size="small">
-            保存位置不在 Driver 所在的网盘时填写 (如 /115/花月/offline), 先离线下载到这里, 改好名再移动到保存位置;
-            跨网盘的移动由 OpenList 在后台完成
+            保存位置在别的网盘时填写, 如 /115/花月/offline
           </el-text>
         </div>
       </SettingsItem>

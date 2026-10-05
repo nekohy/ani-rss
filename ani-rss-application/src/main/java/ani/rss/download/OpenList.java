@@ -28,10 +28,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * OpenList 离线下载: 直接下载到下载位置 (季目录)。
- * 单文件的种子在原地改名; 带文件夹的种子把视频和字幕移到季目录, 再删除这个文件夹。
- * 新文件靠下载前后各列一次季目录找出, 下载是一个接一个进行的 (DownloadService.downloadAni 加了锁)。
- * 设置了离线下载目录时 (保存位置不在 Driver 所在的网盘), 上面这些在离线下载目录里做, 最后把视频和字幕移到保存位置。
+ * OpenList 离线下载: 下载到季目录, 新文件靠下载前后各列一次目录找出, 原地改名, 种子带的文件夹移出后删除。
+ * 设置了离线下载目录时在其中每集一个文件夹里做这些, 再移到保存位置。
  */
 @Slf4j
 @Service
@@ -80,6 +78,19 @@ public class OpenList {
     }
 
 
+    /**
+     * OpenList 的离线下载和移动任务
+     */
+    public List<OpenListTaskInfo> tasks() {
+        List<OpenListTaskInfo> tasks = new ArrayList<>();
+        for (String type : List.of("offline_download", "move")) {
+            for (String status : List.of("undone", "done")) {
+                tasks.addAll(openListUtil.taskList(type, status));
+            }
+        }
+        return tasks;
+    }
+
     public Boolean download(Ani ani, Item item, String savePath, File torrentFile) {
         // windows 真该死啊
         savePath = ReUtil.replaceAll(savePath, "^[A-z]:", "");
@@ -95,8 +106,14 @@ public class OpenList {
         // 洗版: 开启备用RSS、自动删除且不共存时替换已有的这一集, 否则跳过
         boolean replace = CONFIG.getStandbyRss() && delete && !CONFIG.getCoexist();
         try {
-            openListUtil.mkdir(savePath);
-            List<OpenListFileInfo> existing = openListUtil.list(savePath);
+            List<OpenListFileInfo> existing;
+            if (stage.equals(savePath)) {
+                openListUtil.mkdir(savePath);
+                existing = openListUtil.list(savePath);
+            } else {
+                // 保存位置在别的网盘, 移动时再创建 (OneDrive 会限流)
+                existing = openListUtil.listIfExists(savePath);
+            }
 
             // 已有的这一集: 视频和字幕 reName.*
             List<String> versions = rename ? existing.stream()
@@ -110,9 +127,11 @@ public class OpenList {
             }
 
             List<OpenListFileInfo> before = existing;
+            String offlineDir = stage;
             if (!stage.equals(savePath)) {
+                stage = stage + "/" + reName;
                 openListUtil.mkdir(stage);
-                before = openListUtil.list(stage);
+                before = List.of();
             }
 
             // 删除残留任务
@@ -162,9 +181,9 @@ public class OpenList {
                                 OpenListTaskInfo.State.Failed
                         ).contains(state)
                 ) {
-                    // 网盘的云下载里已有这个链接 (115: 10008), 重试不会成功
-                    if (StrUtil.containsAny(error, "10008", "任务已存在")) {
-                        throw new TaskExistsException(reName);
+                    // OpenList 自己会重试, Failed 了再处理
+                    if (state != OpenListTaskInfo.State.Failed) {
+                        continue;
                     }
                     // 已到达最大重试次数 5 次, -1 不限制
                     if (openListDownloadRetryNumber > -1) {
@@ -235,7 +254,7 @@ public class OpenList {
                 openListUtil.fsRemove(savePath, versions);
             }
 
-            // 在各自的目录里改名, 再移到季目录 (离线下载目录)
+            // 在各自的目录里改名, 再移到季目录
             Map<String, List<OpenListFileInfo>> dirs = targets.keySet()
                     .stream()
                     .collect(Collectors.groupingBy(OpenListFileInfo::getPath, LinkedHashMap::new, Collectors.toList()));
@@ -269,18 +288,25 @@ public class OpenList {
                 openListUtil.fsRemove(stage, residual);
             }
 
-            // 移到保存位置, 跨网盘时 OpenList 在后台复制完再删除源文件
+            // 移到保存位置, 等 OpenList 的移动任务结束后删除这一集的文件夹
             if (!stage.equals(savePath)) {
                 List<String> names = List.copyOf(targets.values());
+                String error;
                 try {
-                    openListUtil.fsMove(stage, savePath, names);
+                    openListUtil.mkdir(savePath);
+                    List<String> tids = openListUtil.fsMove(stage, savePath, names);
                     log.info("移动 {}/{} ==> {}", stage, names, savePath);
+                    error = awaitMove(tids);
                 } catch (Exception e) {
-                    String message = StrFormatter.format("{} 已下载到 {}, 移动到 {} 失败: {}", reName, stage, savePath, e.getMessage());
-                    log.error(message, e);
+                    error = e.getMessage();
+                }
+                if (Objects.nonNull(error)) {
+                    String message = StrFormatter.format("{} 已下载到 {}, 移动到 {} 失败: {}", reName, stage, savePath, error);
+                    log.error(message);
                     NotificationUtil.send(CONFIG, ani, message, NotificationStatusEnum.ERROR);
                     return true;
                 }
+                openListUtil.fsRemove(offlineDir, List.of(reName));
             }
 
             NotificationUtil.send(CONFIG, ani,
@@ -288,8 +314,6 @@ public class OpenList {
                     NotificationStatusEnum.DOWNLOAD_END
             );
             return true;
-        } catch (TaskExistsException e) {
-            throw e;
         } catch (Exception e) {
             log.error(e.getMessage(), e);
         }
@@ -297,12 +321,29 @@ public class OpenList {
     }
 
     /**
-     * 网盘的云下载列表里已有这个链接: OpenList 删不掉网盘里的任务, 重试也不会成功
+     * 等移动任务结束, 返回失败原因, 都成功时为 null
      */
-    public static class TaskExistsException extends IllegalStateException {
-        public TaskExistsException(String reName) {
-            super(StrFormatter.format("{} 离线下载失败: 网盘的云下载里已有这个链接 (任务已存在), 请在网盘里删除这个任务, 下次刷新 RSS 时会重新下载", reName));
+    private String awaitMove(List<String> tids) {
+        DateTime endTime = DateUtil.offsetMinute(DateTime.now(), CONFIG.getOpenListDownloadTimeout());
+        for (String tid : tids) {
+            while (true) {
+                if (DateTime.now().isAfter(endTime)) {
+                    return CONFIG.getOpenListDownloadTimeout() + " 分钟还未移完";
+                }
+                Optional<OpenListTaskInfo> taskInfoOpt = openListUtil.taskInfo("move", tid);
+                if (taskInfoOpt.isEmpty()) {
+                    continue;
+                }
+                OpenListTaskInfo.State state = taskInfoOpt.get().getState();
+                if (state == OpenListTaskInfo.State.Succeeded) {
+                    break;
+                }
+                if (List.of(OpenListTaskInfo.State.Failed, OpenListTaskInfo.State.Canceled).contains(state)) {
+                    return StrUtil.blankToDefault(taskInfoOpt.get().getError(), state.name());
+                }
+            }
         }
+        return null;
     }
 
     /**

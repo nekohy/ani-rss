@@ -508,7 +508,7 @@ public class Config implements Serializable {
     /**
      * OpenList 离线下载目录
      */
-    @Schema(description = "OpenList 离线下载目录: 保存位置不在 Driver 所在的网盘时, 先离线下载到这里, 再移动到保存位置; 留空则直接下载到保存位置")
+    @Schema(description = "OpenList 离线下载目录, 保存位置在别的网盘时使用")
     private String openListOfflinePath;
 
     /**
