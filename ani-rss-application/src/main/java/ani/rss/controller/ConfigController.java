@@ -1,7 +1,6 @@
 package ani.rss.controller;
 
 import ani.rss.annotation.Auth;
-import ani.rss.config.CronConfig;
 import ani.rss.entity.Config;
 import ani.rss.entity.Global;
 import ani.rss.entity.ProxyTest;
@@ -19,9 +18,6 @@ import org.springframework.web.bind.annotation.*;
 @Slf4j
 @RestController
 public class ConfigController extends BaseController {
-
-    @Resource
-    private CronConfig cronConfig;
 
     @Resource
     private ConfigService configService;
@@ -48,14 +44,6 @@ public class ConfigController extends BaseController {
     public Result<Void> clearCache() {
         String formatSize = configService.clearCache();
         return Result.success("清理完成, 共清理 {}", formatSize);
-    }
-
-    @Auth
-    @Operation(summary = "更新trackers")
-    @PostMapping("/trackersUpdate")
-    public Result<Void> trackersUpdate(@RequestBody Config config) {
-        cronConfig.updateTrackers(config);
-        return Result.success();
     }
 
     @Auth

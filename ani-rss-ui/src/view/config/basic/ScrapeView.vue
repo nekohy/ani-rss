@@ -1,7 +1,4 @@
 <template>
-  <SettingsItem label="自动刮削">
-    <el-switch v-model="props.config['scrape']"/>
-  </SettingsItem>
   <SettingsItem label="追更天数">
     <div>
       <el-input-number v-model="props.config['followDay']" :min="1">

@@ -873,8 +873,6 @@ public class BgmUtil {
         DownloadService downloadService = SpringUtil.getBean(DownloadService.class);
         String downloadPath = downloadService.getDownloadPath(ani);
 
-        String completedPathTemplate = CONFIG.getCompletedPathTemplate();
-
         if (ova) {
             // 剧场版默认不开启摸鱼检测
             ani.setProcrastinating(false);
@@ -883,9 +881,197 @@ public class BgmUtil {
         return ani
                 // tmdb 标题
                 .setThemoviedbName(themoviedbName)
-                .setCustomDownloadPathTemplate(downloadPath)
-                .setCustomCompletedPathTemplate(completedPathTemplate);
+                .setCustomDownloadPathTemplate(downloadPath);
     }
 
+    /**
+     * 番剧: bgm 上用「前传/续集」串起来的 TV/WEB 条目, 一个条目就是一季
+     *
+     * @param name   第一季的 "名 (年)"
+     * @param id     第一季的条目
+     * @param season 本季在季链里的位置, 从 1 开始
+     */
+    public record Show(String name, String id, Integer season) {
+    }
 
+    /**
+     * 替换模板中的 ${showName} ${showBgmId} ${bgmSeason}
+     *
+     * @param template 模板
+     * @param ani      订阅
+     * @return 替换结果
+     */
+    public static String replaceShow(String template, Ani ani) {
+        if (!StrUtil.containsAny(template, "${showName}", "${showBgmId}", "${bgmSeason}")) {
+            return template;
+        }
+        Show show = getShow(ani);
+        return template
+                .replace("${showName}", show.name())
+                .replace("${showBgmId}", show.id())
+                .replace("${bgmSeason}", String.valueOf(show.season()));
+    }
+
+    /**
+     * 订阅所属的番剧。条目不在 TV/WEB 季链里时 (剧场版、OVA) 番剧就是它自己, 季号沿用订阅的季
+     *
+     * @param ani 订阅
+     * @return 番剧
+     */
+    public static Show getShow(Ani ani) {
+        String subjectId = getSubjectId(ani);
+        Assert.notBlank(subjectId, "未能获取 bgmId: {}", ani.getTitle());
+        List<JsonObject> chain = getSeasonChain(subjectId);
+        for (int i = 0; i < chain.size(); i++) {
+            if (subjectId.equals(chain.get(i).get("id").getAsString())) {
+                JsonObject first = chain.getFirst();
+                return new Show(showName(first), first.get("id").getAsString(), i + 1);
+            }
+        }
+        return new Show(showName(getSubject(subjectId)), subjectId, ani.getSeason());
+    }
+
+    /**
+     * 季链: 包含这个条目的番剧的 TV/WEB 条目, 第一季在前 (中间的剧场版、OVA 跳过)
+     *
+     * @param subjectId 条目
+     * @return 条目列表
+     */
+    public static List<JsonObject> getSeasonChain(String subjectId) {
+        int max = 40;
+        String root = subjectId;
+        Set<String> seen = new HashSet<>(Set.of(subjectId));
+        String prev;
+        while (seen.size() < max && Objects.nonNull(prev = related(root, "前传")) && seen.add(prev)) {
+            root = prev;
+        }
+        List<JsonObject> chain = new ArrayList<>();
+        seen.clear();
+        String current = root;
+        while (Objects.nonNull(current) && seen.size() < max && seen.add(current)) {
+            JsonObject subject = getSubject(current);
+            if (isSeries(subject)) {
+                chain.add(subject);
+            }
+            current = related(current, "续集");
+        }
+        return chain;
+    }
+
+    /**
+     * bgm 的集号 sort (官方集号, 可能跨季连续): 按订阅的集数找本季的 ep; bgm 上没有这一集时沿用订阅的集数
+     *
+     * @param ani     订阅
+     * @param episode 集数
+     * @return 两位的集号, .5 集带 .5
+     */
+    public static String getSortFormat(Ani ani, Double episode) {
+        String format = String.format("%02d", episode.intValue());
+        if (ItemsUtil.is5(episode)) {
+            return format + ".5";
+        }
+        String subjectId = getSubjectId(ani);
+        String key = "BGM_mainEpisodes:" + subjectId;
+        JsonArray episodes = CacheUtils.get(key);
+        if (Objects.isNull(episodes)) {
+            episodes = setToken(HttpReq.get(CONFIG.getBgmApi() + "/v0/episodes"))
+                    .form("subject_id", subjectId)
+                    .form("type", 0)
+                    .form("limit", 1000)
+                    .form("offset", 0)
+                    .thenFunction(res -> {
+                        HttpReq.assertStatus(res);
+                        return GsonStatic.fromJson(res.body(), JsonObject.class).getAsJsonArray("data");
+                    });
+            CacheUtils.put(key, episodes, TimeUnit.MINUTES.toMillis(10));
+        }
+        for (JsonElement element : episodes) {
+            JsonObject bgmEpisode = element.getAsJsonObject();
+            JsonElement ep = bgmEpisode.get("ep");
+            JsonElement sort = bgmEpisode.get("sort");
+            if (Objects.isNull(ep) || ep.isJsonNull() || Objects.isNull(sort) || sort.isJsonNull()) {
+                continue;
+            }
+            if (ep.getAsDouble() == episode && sort.getAsDouble() == Math.floor(sort.getAsDouble())) {
+                return String.format("%02d", sort.getAsInt());
+            }
+        }
+        return format;
+    }
+
+    /**
+     * 与条目是 relation 关系的动画条目, 有几个时优先 TV/WEB (剧场版的前传可能同时有 OVA 和一季)
+     */
+    private static String related(String subjectId, String relation) {
+        List<String> ids = getRelations(subjectId)
+                .stream()
+                .filter(it -> relation.equals(it.get("relation").getAsString()) && it.get("type").getAsInt() == 2)
+                .map(it -> it.get("id").getAsString())
+                .toList();
+        if (ids.size() < 2) {
+            return ids.isEmpty() ? null : ids.getFirst();
+        }
+        return ids.stream()
+                .filter(id -> isSeries(getSubject(id)))
+                .findFirst()
+                .orElse(ids.getFirst());
+    }
+
+    private static boolean isSeries(JsonObject subject) {
+        JsonElement platform = subject.get("platform");
+        return Objects.nonNull(platform) && !platform.isJsonNull() &&
+                List.of("TV", "WEB").contains(platform.getAsString());
+    }
+
+    /**
+     * "名 (年)", 名字中不能用作文件名的字符换成全角
+     */
+    private static String showName(JsonObject subject) {
+        String name = Opt.ofNullable(subject.get("name_cn"))
+                .filter(it -> !it.isJsonNull())
+                .map(JsonElement::getAsString)
+                .filter(StrUtil::isNotBlank)
+                .orElseGet(() -> subject.get("name").getAsString());
+        name = name.replace(":", "：").replace("?", "？").replace("*", "＊").replace("\"", "＂")
+                .replace("<", "＜").replace(">", "＞").replace("|", "｜").replace("/", " ").replace("\\", " ");
+        name = name.replaceAll("\\s+", " ").trim().replaceAll("\\.+$", "");
+        String year = Opt.ofNullable(subject.get("date"))
+                .filter(it -> !it.isJsonNull())
+                .map(JsonElement::getAsString)
+                .map(date -> StrUtil.sub(date, 0, 4))
+                .filter(NumberUtil::isInteger)
+                .orElse("");
+        return year.isEmpty() ? name : name + " (" + year + ")";
+    }
+
+    private static JsonObject getSubject(String subjectId) {
+        String key = "BGM_subjectJson:" + subjectId;
+        JsonObject subject = CacheUtils.get(key);
+        if (Objects.isNull(subject)) {
+            subject = setToken(HttpReq.get(CONFIG.getBgmApi() + "/v0/subjects/" + subjectId))
+                    .thenFunction(res -> {
+                        HttpReq.assertStatus(res);
+                        return GsonStatic.fromJson(res.body(), JsonObject.class);
+                    });
+            CacheUtils.put(key, subject, TimeUnit.DAYS.toMillis(1));
+        }
+        return subject;
+    }
+
+    private static List<JsonObject> getRelations(String subjectId) {
+        String key = "BGM_relations:" + subjectId;
+        List<JsonObject> relations = CacheUtils.get(key);
+        if (Objects.isNull(relations)) {
+            relations = setToken(HttpReq.get(CONFIG.getBgmApi() + "/v0/subjects/" + subjectId + "/subjects"))
+                    .thenFunction(res -> {
+                        HttpReq.assertStatus(res);
+                        List<JsonObject> list = new ArrayList<>();
+                        GsonStatic.fromJson(res.body(), JsonArray.class)
+                                .forEach(it -> list.add(it.getAsJsonObject()));
+                        return list;
+                    });
+            CacheUtils.put(key, relations, TimeUnit.DAYS.toMillis(1));
+        }
+        return relations;
+    }
 }

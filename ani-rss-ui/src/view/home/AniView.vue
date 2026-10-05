@@ -186,18 +186,6 @@
                 </div>
               </div>
             </el-form-item>
-            <el-form-item label="自定义完结迁移">
-              <div class="full-width">
-                <div>
-                  <el-switch v-model="props.ani.customCompleted"/>
-                </div>
-                <div>
-                  <el-input type="textarea" class="full-width" :disabled="!props.ani.customCompleted"
-                            :autosize="{ minRows: 2}"
-                            v-model:model-value="props.ani.customCompletedPathTemplate"/>
-                </div>
-              </div>
-            </el-form-item>
             <el-form-item label="重命名模版">
               <div class="full-width">
                 <el-switch v-model="props.ani['customRenameTemplateEnable']"/>
@@ -215,34 +203,12 @@
                 </el-link>
               </div>
             </el-form-item>
-            <el-form-item label="自定义标签">
-              <div>
-                <el-switch v-model="props.ani.customTagsEnable"/>
-                <DisableView v-model="props.ani.customTagsEnable">
-                  <CustomTagsView :config="props.ani"/>
-                </DisableView>
-              </div>
-            </el-form-item>
-            <el-form-item label="优先保留">
-              <div class="full-width">
-                <el-switch v-model="props.ani.customPriorityKeywordsEnable"/>
-                <br>
-                <DisableView v-model="props.ani.customPriorityKeywordsEnable">
-                  <PrioKeysView
-                      v-model:keywords="props.ani.customPriorityKeywords"
-                      :import-global="true"
-                      :show-text="true"
-                  />
-                </DisableView>
-              </div>
-            </el-form-item>
             <el-form-item label="其它">
               <el-checkbox v-model="props.ani.omit" label="遗漏检测"/>
               <el-checkbox v-model="props.ani.upload" label="自动上传"/>
               <el-checkbox v-model="props.ani.downloadNew" label="只下载最新集"/>
               <el-checkbox v-model="props.ani['procrastinating']" label="摸鱼检测"/>
               <el-checkbox v-model="props.ani['message']" label="通知"/>
-              <el-checkbox v-model="props.ani['completed']" label="完结迁移"/>
             </el-form-item>
           </el-form>
         </el-scrollbar>
@@ -300,20 +266,17 @@
 <script setup>
 
 import ExcludeView from "@/view/config/ExcludeView.vue";
-import PrioKeysView from "@/view/config/PrioKeysView.vue";
 import PreviewView from "./PreviewView.vue";
 import {onMounted, ref} from "vue";
 import {ElMessage, ElMessageBox, ElText} from "element-plus";
 import StandbyRssView from "./StandbyRssView.vue";
 import MikanView from "./MikanView.vue";
 import TmdbGroupView from "./TmdbGroupView.vue";
-import CustomTagsView from "@/view/config/CustomTagsView.vue";
 import {Refresh, RefreshRight} from "@element-plus/icons-vue";
 import * as http from "@/js/http.js";
 import {getBgmTitle} from "@/js/http.js";
 import AniBTView from "@/view/home/AniBTView.vue";
 import AnimeGardenView from "@/view/home/AnimeGardenView.vue";
-import DisableView from "@/view/custom/DisableView.vue";
 
 const activeName = ref('base')
 

@@ -1,15 +1,11 @@
 package ani.rss.util.other;
 
-import ani.rss.commons.FileUtils;
 import ani.rss.commons.GsonStatic;
 import ani.rss.entity.*;
 import ani.rss.entity.dto.RssToAniDTO;
-import ani.rss.entity.torrent.TorrentsInfo;
 import ani.rss.exception.ResultException;
 import ani.rss.handle.JsonReader;
 import ani.rss.handle.JsonWriter;
-import ani.rss.service.ClearService;
-import ani.rss.service.DownloadService;
 import ani.rss.service.MikanService;
 import ani.rss.util.basic.HttpReq;
 import cn.hutool.core.bean.BeanUtil;
@@ -20,12 +16,10 @@ import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.io.resource.ResourceUtil;
 import cn.hutool.core.lang.Assert;
-import cn.hutool.core.thread.ThreadUtil;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.core.util.URLUtil;
 import cn.hutool.crypto.SecureUtil;
-import cn.hutool.extra.spring.SpringUtil;
 import cn.hutool.http.HttpUtil;
 import cn.hutool.json.JSONUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -328,104 +322,6 @@ public class AniUtil {
     }
 
 
-    /**
-     * 订阅完结迁移
-     *
-     * @param ani 订阅
-     */
-    public static void completed(Ani ani) {
-        ani = ObjectUtil.clone(ani);
-
-        String title = ani.getTitle();
-        boolean completed = ani.getCompleted();
-        boolean ova = ani.getOva();
-        boolean enable = ani.getEnable();
-        int currentEpisodeNumber = ani.getCurrentEpisodeNumber();
-        int totalEpisodeNumber = ani.getTotalEpisodeNumber();
-
-        if (!completed) {
-            // 未开启完结迁移
-            return;
-        }
-
-        if (totalEpisodeNumber < 1) {
-            // 总集数为空
-            return;
-        }
-
-        if (currentEpisodeNumber < totalEpisodeNumber) {
-            // 未完结
-            return;
-        }
-
-        if (enable) {
-            // 仍是启用的话 主RSS仍未完结
-            return;
-        }
-
-        if (ova) {
-            // 剧场版不进行迁移
-            return;
-        }
-
-        Config config = ObjectUtil.clone(CONFIG);
-
-        if (!config.getAutoDisabled()) {
-            // 未开启自动禁用订阅
-            return;
-        }
-
-        if (!config.getCompleted()) {
-            // 未开启完结迁移
-            return;
-        }
-
-
-        // 旧文件路径
-        DownloadService downloadService = SpringUtil.getBean(DownloadService.class);
-        String oldPath = downloadService.getDownloadPath(ani);
-
-        List<TorrentsInfo> torrentsInfos = TorrentUtil.findTorrentsInfosByAni(ani);
-
-        // 新文件路径
-        String completedPathTemplate = ani.getCustomCompleted() ? ani.getCustomCompletedPathTemplate() : config.getCompletedPathTemplate();
-        String newPath = downloadService.getDownloadPath(ani, completedPathTemplate);
-
-        if (!FileUtil.exist(oldPath)) {
-            // 旧位置不存在
-            return;
-        }
-
-        FileUtil.mkdir(newPath);
-
-        // 修改任务位置
-        for (TorrentsInfo torrentsInfo : torrentsInfos) {
-            // 修改保存位置
-            TorrentUtil.setSavePath(torrentsInfo, newPath);
-        }
-
-        if (!torrentsInfos.isEmpty()) {
-            ThreadUtil.sleep(3000);
-        }
-
-        File[] files = FileUtils.listFiles(oldPath);
-
-        log.info("订阅已完结 {}, 移动已完结文件共 {} 个", title, files.length);
-
-        for (File file : files) {
-            if (!file.exists()) {
-                continue;
-            }
-            // 移动文件
-            log.info("移动 {} ==> {}", file, newPath);
-            FileUtil.move(file, new File(newPath), true);
-        }
-
-        // 清理残留文件夹
-        ClearService clearService = SpringUtil.getBean(ClearService.class);
-        clearService.clearDir(oldPath);
-    }
-
     public static Ani createAni() {
         Ani newAni = new Ani();
         return newAni
@@ -466,16 +362,9 @@ public class AniUtil {
                 .setProcrastinating(true)
                 .setCustomRenameTemplate(CONFIG.getRenameTemplate())
                 .setCustomRenameTemplateEnable(false)
-                .setCustomPriorityKeywordsEnable(false)
-                .setCustomPriorityKeywords(new ArrayList<>())
                 .setMessage(true)
                 .setCustomUploadPathTarget("")
-                .setCustomUploadEnable(false)
-                .setCompleted(true)
-                .setCustomCompleted(false)
-                .setCustomCompletedPathTemplate("")
-                .setCustomTags(new ArrayList<>())
-                .setCustomTagsEnable(false);
+                .setCustomUploadEnable(false);
     }
 
 

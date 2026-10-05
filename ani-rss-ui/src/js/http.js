@@ -181,12 +181,6 @@ export let searchBgm = (name) => api.post(`api/searchBgm?name=${name}`)
 export let testProxy = (url, config) => api.post(`api/testProxy?url=${url}`, config)
 
 /**
- * 下载列表
- * @returns {Promise<unknown>}
- */
-export let torrentsInfos = () => api.post('api/torrentsInfos')
-
-/**
  * 订单号校验
  * @param config 设置
  * @returns {Promise<unknown>}
@@ -275,13 +269,6 @@ export let scrape = (force, ani) => api.post(`api/scrape?force=${force}`, ani)
 export let meBgm = (ani) => api.post('api/meBgm', ani)
 
 /**
- * 更新trackers
- * @param config 设置
- * @returns {Promise<unknown>}
- */
-export let trackersUpdate = (config) => api.post('api/trackersUpdate', config)
-
-/**
  * 获取Emby媒体库
  * @param config 设置
  * @returns {Promise<unknown>}
@@ -340,27 +327,6 @@ export let playList = (ani) => api.post('api/playList', ani)
 export let getSubtitles = (filename) => {
     return api.post(`api/getSubtitles?filename=${base64Encode(filename)}`);
 }
-
-/**
- * 开始下载合集
- * @param info 合集
- * @returns {Promise<unknown>}
- */
-export let startCollection = (info) => api.post('api/startCollection', info)
-
-/**
- * 预览合集
- * @param info 合集
- * @returns {Promise<unknown>}
- */
-export let previewCollection = (info) => api.post('api/previewCollection', info)
-
-/**
- * 获取合集字幕组
- * @param info 合集
- * @returns {Promise<unknown>}
- */
-export let getCollectionSubgroup = (info) => api.post('api/getCollectionSubgroup', info)
 
 /**
  * 将指定id的BGM番剧转换为订阅

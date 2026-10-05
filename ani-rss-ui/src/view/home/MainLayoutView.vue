@@ -22,12 +22,6 @@
           </el-icon>
           <span>订阅</span>
         </el-menu-item>
-        <el-menu-item index="/downloads">
-          <el-icon>
-            <Download/>
-          </el-icon>
-          <span>下载</span>
-        </el-menu-item>
         <el-menu-item index="/logs">
           <el-icon>
             <Tickets/>
@@ -55,7 +49,7 @@
 <script setup>
 import {onMounted} from "vue";
 import {RouterView, useRoute} from "vue-router";
-import {Collection, Download, House, Setting, Tickets} from "@element-plus/icons-vue";
+import {Collection, House, Setting, Tickets} from "@element-plus/icons-vue";
 import {initLayout} from "@/js/global.js";
 
 const route = useRoute()

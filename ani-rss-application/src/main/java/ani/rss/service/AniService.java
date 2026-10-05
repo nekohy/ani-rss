@@ -7,7 +7,6 @@ import ani.rss.comparator.WeekComparator;
 import ani.rss.entity.*;
 import ani.rss.entity.dto.IdDTO;
 import ani.rss.entity.dto.ImportAniDataDTO;
-import ani.rss.entity.torrent.TorrentsInfo;
 import ani.rss.enums.AniSortTypeEnum;
 import ani.rss.task.RssTask;
 import ani.rss.util.other.*;
@@ -127,12 +126,6 @@ public class AniService {
                     return;
                 }
 
-                List<TorrentsInfo> torrentsInfos = TorrentUtil.findTorrentsInfosByAni(oldAni);
-                for (TorrentsInfo torrentsInfo : torrentsInfos) {
-                    // 修改保存位置
-                    TorrentUtil.setSavePath(torrentsInfo, newDownloadPath);
-                }
-
                 try {
                     FileUtil.mkdir(newDownloadPath);
                     List<File> files = FileUtils.listFileList(downloadPath);
@@ -186,11 +179,6 @@ public class AniService {
             }
 
             if (deleteFiles) {
-                // 删除任务
-                List<TorrentsInfo> torrentsInfoList = TorrentUtil.findTorrentsInfosByAni(anis);
-                for (TorrentsInfo torrentsInfo : torrentsInfoList) {
-                    TorrentUtil.delete(torrentsInfo, true, true);
-                }
                 // 删除本地视频
                 for (Ani ani : anis) {
                     String downloadPath = downloadService.getDownloadPath(ani);
@@ -376,10 +364,6 @@ public class AniService {
             item.setHasDownloaded(false);
             File torrent = TorrentUtil.getTorrent(ani, item);
             if (torrent.exists()) {
-                item.setHasDownloaded(true);
-                continue;
-            }
-            if (downloadService.itemDownloaded(ani, item, false)) {
                 item.setHasDownloaded(true);
             }
         }

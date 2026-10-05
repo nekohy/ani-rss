@@ -91,11 +91,6 @@
                     type="textarea"/>
               </el-form-item>
             </el-form>
-            <el-alert
-                :closable="false"
-                show-icon
-                title="含有磁力链接的 RSS 不支持 Aria2。"
-                type="warning"/>
           </div>
         </el-tab-pane>
       </el-tabs>

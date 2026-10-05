@@ -39,28 +39,6 @@
                 <div class="metric-value">{{ enabledTotal }}</div>
               </div>
             </div>
-            <div class="metric-item">
-              <div class="metric-icon downloading">
-                <el-icon>
-                  <Download/>
-                </el-icon>
-              </div>
-              <div>
-                <el-text size="small" type="info">下载中</el-text>
-                <div class="metric-value">{{ downloadingList.length }}</div>
-              </div>
-            </div>
-            <div class="metric-item">
-              <div class="metric-icon seeding">
-                <el-icon>
-                  <Upload/>
-                </el-icon>
-              </div>
-              <div>
-                <el-text size="small" type="info">做种中</el-text>
-                <div class="metric-value">{{ seedingList.length }}</div>
-              </div>
-            </div>
           </div>
 
           <section class="dashboard-section today-section">
@@ -102,35 +80,6 @@
 
           <section class="dashboard-section">
             <div class="section-title">
-              <h3>下载中</h3>
-              <el-tag type="info">{{ activeTorrents.length }}</el-tag>
-            </div>
-            <el-empty v-if="!activeTorrents.length" description="当前无下载中任务"/>
-            <el-table v-else :data="activeTorrents" class="dashboard-table" size="small">
-              <el-table-column label="类型" width="76">
-                <template #default="{ row }">
-                  <el-tag :type="isDownloading(row) ? 'primary' : 'success'" size="small">
-                    {{ isDownloading(row) ? '下载' : '做种' }}
-                  </el-tag>
-                </template>
-              </el-table-column>
-              <el-table-column label="名称" min-width="220" prop="name" show-overflow-tooltip/>
-              <el-table-column label="进度" width="150">
-                <template #default="{ row }">
-                  <el-progress :percentage="row.progress || 0" :show-text="false"/>
-                </template>
-              </el-table-column>
-              <el-table-column label="大小" width="110" prop="formatSize"/>
-              <el-table-column label="状态" width="100">
-                <template #default="{ row }">
-                  {{ stateLabel(row.state) }}
-                </template>
-              </el-table-column>
-            </el-table>
-          </section>
-
-          <section class="dashboard-section">
-            <div class="section-title">
               <h3>疑似停更列表</h3>
               <el-tag type="warning">{{ procrastinatingList.length }}</el-tag>
             </div>
@@ -161,8 +110,8 @@
 </template>
 
 <script setup>
-import {computed, onActivated, onDeactivated, onUnmounted, ref} from "vue";
-import {ArrowLeft, ArrowRight, CircleCheck, Download, List, Upload} from "@element-plus/icons-vue";
+import {computed, onActivated, ref} from "vue";
+import {ArrowLeft, ArrowRight, CircleCheck, List} from "@element-plus/icons-vue";
 import {formatDate, fromNow} from "@/js/format.js";
 import * as http from "@/js/http.js";
 import AniCoverView from "@/view/home/AniCoverView.vue";
@@ -174,14 +123,11 @@ import BgmRateView from "@/view/home/BgmRateView.vue";
 import PageHeaderView from "@/view/custom/PageHeaderView.vue";
 
 const weekLabels = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六']
-const downloadingStates = ['forcedDL', 'downloading', 'forcedMetaDL', 'metaDL', 'stalledDL', 'checkingDL', 'queuedDL', 'allocating', 'moving']
-const seedingStates = ['forcedUP', 'uploading', 'stalledUP', 'queuedUP', 'checkingUP']
 const dayMs = 24 * 60 * 60 * 1000
 
 const refreshLoading = ref(false)
 const weekList = ref([])
 const subscriptionTotalValue = ref(0)
-const torrentsInfos = ref([])
 const todayTrack = ref()
 const editAniRef = ref()
 const delAniRef = ref()
@@ -191,8 +137,6 @@ const bgmRateRef = ref()
 const config = ref({
   procrastinatingDay: 14
 })
-
-let timer
 
 const todayLabel = computed(() => weekLabels[new Date().getDay()])
 const flatAnis = computed(() => weekList.value.flatMap(week => week.items || []))
@@ -204,9 +148,6 @@ const todayAnis = computed(() => {
   return today ? (today.items || []).filter(item => item.enable) : []
 })
 const todayText = computed(() => todayAnis.value.length ? `${todayAnis.value.length} 个订阅` : '没有订阅')
-const downloadingList = computed(() => torrentsInfos.value.filter(isDownloading))
-const seedingList = computed(() => torrentsInfos.value.filter(isSeeding))
-const activeTorrents = computed(() => torrentsInfos.value.filter(item => item.state !== 'stoppedUP'))
 const procrastinatingList = computed(() => {
   const threshold = Number(config.value.procrastinatingDay || 14)
   return enabledAnis.value
@@ -232,29 +173,6 @@ const getCompareTime = item => {
   return Number.isNaN(releaseTime) ? 0 : releaseTime
 }
 
-const isDownloading = item => downloadingStates.includes(item.state)
-const isSeeding = item => seedingStates.includes(item.state)
-
-const stateLabel = state => {
-  const map = {
-    forcedDL: '强制下载',
-    downloading: '下载中',
-    forcedMetaDL: '获取元数据',
-    metaDL: '元数据',
-    stalledDL: '下载停滞',
-    queuedDL: '等待下载',
-    checkingDL: '检查下载',
-    allocating: '分配空间',
-    moving: '移动中',
-    forcedUP: '强制上传',
-    uploading: '上传中',
-    stalledUP: '做种中',
-    queuedUP: '等待做种',
-    checkingUP: '检查做种'
-  }
-  return map[state] || state || '未知'
-}
-
 const scrollToday = direction => {
   const track = todayTrack.value
   if (!track) {
@@ -277,49 +195,26 @@ const loadConfig = async () => {
   config.value = res.data || config.value
 }
 
-const loadTorrents = async () => {
-  const res = await http.torrentsInfos()
-  torrentsInfos.value = res.data || []
-}
-
 const loadAll = async () => {
   refreshLoading.value = true
   try {
     await Promise.all([
       loadAni(),
-      loadConfig(),
-      loadTorrents()
+      loadConfig()
     ])
   } finally {
     refreshLoading.value = false
   }
 }
 
-const startPolling = () => {
-  if (timer) {
-    return
-  }
-  timer = setInterval(loadTorrents, 5000)
-}
-
-const stopPolling = () => {
-  clearInterval(timer)
-  timer = undefined
-}
-
-onActivated(() => {
-  loadAll()
-  startPolling()
-})
-onDeactivated(stopPolling)
-onUnmounted(stopPolling)
+onActivated(loadAll)
 </script>
 
 <style scoped>
 .metric-grid {
   grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -353,16 +248,6 @@ onUnmounted(stopPolling)
   background-color: var(--el-color-success-light-9);
 }
 
-.metric-icon.downloading {
-  color: var(--el-color-warning);
-  background-color: var(--el-color-warning-light-9);
-}
-
-.metric-icon.seeding {
-  color: var(--el-color-info);
-  background-color: var(--el-color-info-light-9);
-}
-
 .metric-value {
   margin-top: 2px;
   font-size: 24px;
@@ -377,7 +262,7 @@ onUnmounted(stopPolling)
 
 .dashboard-content {
   display: grid;
-  grid-template-columns: minmax(280px, 0.9fr) minmax(320px, 1.1fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
   padding-bottom: 8px;
 }
@@ -461,22 +346,7 @@ onUnmounted(stopPolling)
   width: 100%;
 }
 
-@media (max-width: 900px) {
-  .metric-grid,
-  .dashboard-content {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
 @media (max-width: 560px) {
-  .dashboard-content {
-    grid-template-columns: 1fr;
-  }
-
-  .metric-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-
   .metric-item {
     padding: 10px;
   }

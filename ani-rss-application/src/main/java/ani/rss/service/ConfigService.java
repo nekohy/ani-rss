@@ -2,7 +2,7 @@ package ani.rss.service;
 
 import ani.rss.commons.FileUtils;
 import ani.rss.commons.MavenUtils;
-import ani.rss.download.BaseDownload;
+import ani.rss.download.OpenList;
 import ani.rss.entity.Config;
 import ani.rss.entity.GitInfo;
 import ani.rss.entity.Login;
@@ -12,16 +12,13 @@ import ani.rss.entity.web.ResultCode;
 import ani.rss.start.BaseStart;
 import ani.rss.util.basic.HttpReq;
 import ani.rss.util.other.ConfigUtil;
-import ani.rss.util.other.TorrentUtil;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.bean.copier.CopyOptions;
 import cn.hutool.core.codec.Base64;
 import cn.hutool.core.date.LocalDateTimeUtil;
 import cn.hutool.core.io.FileUtil;
-import cn.hutool.core.util.ClassUtil;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
-import cn.hutool.extra.spring.SpringUtil;
 import cn.hutool.http.HttpRequest;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -49,6 +46,9 @@ public class ConfigService {
     @Resource
     private GitProperties gitProperties;
 
+    @Resource
+    private OpenList openList;
+
     public Config config() {
         String version = MavenUtils.getVersion();
         Config config = ObjectUtil.clone(ConfigUtil.CONFIG);
@@ -70,9 +70,7 @@ public class ConfigService {
         Login login = config.getLogin();
         String username = login.getUsername();
         String password = login.getPassword();
-        Integer renameSleepSeconds = config.getRenameSleepSeconds();
         Integer sleep = config.getRssSleepMinutes();
-        String download = config.getDownloadToolType();
         Boolean autoStart = config.getAutoStart();
 
         newConfig.setExpirationTime(null)
@@ -114,20 +112,12 @@ public class ConfigService {
         }
 
         ConfigUtil.sync();
-        Integer newRenameSleepSeconds = config.getRenameSleepSeconds();
         Integer newSleep = config.getRssSleepMinutes();
         Boolean newAutoStart = config.getAutoStart();
 
         // 时间间隔发生改变，重启任务
-        if (
-                !Objects.equals(newSleep, sleep) ||
-                        !Objects.equals(newRenameSleepSeconds, renameSleepSeconds)
-        ) {
+        if (!Objects.equals(newSleep, sleep)) {
             taskService.restart();
-        }
-        // 下载工具发生改变
-        if (!download.equals(config.getDownloadToolType())) {
-            TorrentUtil.loadDownloadTool();
         }
         // 开机自启发生改变
         if (!newAutoStart.equals(autoStart)) {
@@ -184,10 +174,7 @@ public class ConfigService {
 
     public Boolean downloadLoginTest(Config config) {
         ConfigUtil.format(config);
-        String download = config.getDownloadToolType();
-        Class<BaseDownload> loadClass = ClassUtil.loadClass("ani.rss.download." + download);
-        BaseDownload baseDownload = SpringUtil.getBean(loadClass);
-        return baseDownload.login(true, config);
+        return openList.login(true, config);
     }
 
 

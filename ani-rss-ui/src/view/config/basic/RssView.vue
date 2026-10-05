@@ -17,23 +17,6 @@
       </template>
     </el-input-number>
   </SettingsItem>
-  <SettingsItem label="自动跳过">
-    <div class="full-width">
-      <el-switch v-model:model-value="props.config.fileExist" :disabled="!config.rename"/>
-      <br>
-      <el-text class="mx-1" size="small">
-        文件已下载自动跳过 此选项必须启用 自动重命名。确保 下载工具 与本程序 docker 映射挂载路径一致
-        &nbsp;
-        <el-link
-            class="text-extra-small"
-            type="primary"
-            href="https://docs.wushuo.top/config/basic/rss#auto-skip"
-            target="_blank">
-          详细说明
-        </el-link>
-      </el-text>
-    </div>
-  </SettingsItem>
   <SettingsItem label="自动禁用订阅">
     <div class="full-width">
       <el-switch v-model:model-value="props.config.autoDisabled"/>
@@ -41,15 +24,6 @@
       <el-text class="mx-1" size="small">
         根据 Bangumi 获取总集数 当所有集数都已下载时自动禁用该订阅
       </el-text>
-      <div>
-        <el-checkbox v-model="props.config['completed']"
-                     :disabled="!props.config.autoDisabled"
-                     label="订阅完结迁移"/>
-      </div>
-      <div>
-        <el-input v-model="props.config['completedPathTemplate']"
-                  :disabled="!props.config.autoDisabled || !props.config['completed']"/>
-      </div>
     </div>
   </SettingsItem>
   <SettingsItem label="自动更新总集数">
@@ -132,10 +106,6 @@ let props = defineProps(['config'])
 </script>
 
 <style scoped>
-.text-extra-small {
-  font-size: var(--el-font-size-extra-small);
-}
-
 .justify-end {
   justify-content: end;
 }

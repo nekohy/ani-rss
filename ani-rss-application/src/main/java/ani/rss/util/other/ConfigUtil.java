@@ -50,11 +50,9 @@ public class ConfigUtil {
 
         String downloadPath = FileUtils.getAbsolutePath(new File(rootPath, "番剧"));
         String ovaDownloadPath = FileUtils.getAbsolutePath(new File(rootPath, "剧场版"));
-        String completedPath = FileUtils.getAbsolutePath(new File(rootPath, "已完结番剧"));
 
         String downloadPathTemplate = StrFormatter.format("{}/${title}/Season ${season}", downloadPath);
         String ovaDownloadPathTemplate = StrFormatter.format("{}/${title}", ovaDownloadPath);
-        String completedPathTemplate = StrFormatter.format("{}/${title}/Season ${season}", completedPath);
 
         String password = SecureUtil.md5("admin");
 
@@ -79,9 +77,7 @@ public class ConfigUtil {
 
         String apiKey = RandomUtil.randomString(64).toLowerCase();
 
-        String downloadToolType = SystemUtil.get("DOWNLOAD_TOOL_TYPE", "qBittorrent");
         String downloadToolHost = SystemUtil.get("DOWNLOAD_TOOL_HOST", "");
-        String downloadToolUsername = SystemUtil.get("DOWNLOAD_TOOL_USERNAME", "");
         String downloadToolPassword = SystemUtil.get("DOWNLOAD_TOOL_PASSWORD", "");
 
         String proxyList = """
@@ -109,31 +105,19 @@ public class ConfigUtil {
                 .setTmdbApiKey("")
                 .setTmdbImage("https://image.tmdb.org")
                 .setTmdbAnime(true)
-                .setRenameSleepSeconds(10)
                 .setRename(true)
                 .setRss(true)
                 .setRssTimeout(20)
-                .setCustomTags(new ArrayList<>())
                 .setDelayedDownload(0)
-                .setFileExist(false)
-                .setAwaitStalledUP(true)
                 .setDelete(false)
-                .setDeleteStandbyRSSOnly(false)
                 .setOffset(false)
                 .setTitleYear(true)
                 .setAutoDisabled(false)
                 .setDownloadPathTemplate(downloadPathTemplate)
                 .setOvaDownloadPathTemplate(ovaDownloadPathTemplate)
                 .setDownloadToolHost(downloadToolHost)
-                .setDownloadToolType(downloadToolType)
                 .setDownloadRetry(3)
-                .setDownloadToolUsername(downloadToolUsername)
                 .setDownloadToolPassword(downloadToolPassword)
-                .setQbUseDownloadPath(false)
-                .setQbContentLayout("Original")
-                .setRatioLimit(-2)
-                .setSeedingTimeLimit(-2)
-                .setInactiveSeedingTimeLimit(-2)
                 .setSkip5(true)
                 .setStandbyRss(false)
                 .setCoexist(false)
@@ -145,7 +129,6 @@ public class ConfigUtil {
                 .setProxyPort(8080)
                 .setProxyUsername("")
                 .setProxyPassword("")
-                .setDownloadCount(0)
                 .setLogin(new Login()
                         .setUsername("admin")
                         .setPassword(password)
@@ -176,11 +159,7 @@ public class ConfigUtil {
                 .setRenameTemplate("[${subgroup}] ${title} S${seasonFormat}E${episodeFormat}")
                 .setRenameDelYear(false)
                 .setRenameDelTmdbId(false)
-                .setPriorityKeywordsEnable(false)
-                .setPriorityKeywords(new ArrayList<>())
                 .setVerifyLoginIp(false)
-                .setAutoTrackersUpdate(false)
-                .setTrackersUpdateUrls("https://cf.trackerslist.com/best.txt")
                 .setAutoUpdate(false)
                 .setVersion("")
                 .setBgmImageSize("medium")
@@ -191,8 +170,6 @@ public class ConfigUtil {
                 .setCustomEpisodeGroupIndex(2)
                 .setProvider("115 Open")
                 .setUpload(true)
-                .setUpLimit(0L)
-                .setDlLimit(0L)
                 .setExpirationTime(0L)
                 .setOutTradeNo("")
                 .setTryOut(false)
@@ -204,10 +181,9 @@ public class ConfigUtil {
                 .setForceUpdateTotalEpisodeNumber(false)
                 .setOpenListDownloadTimeout(60)
                 .setOpenListDownloadRetryNumber(5L)
+                .setOpenListOfflinePath("")
                 .setConfigBackup(false)
                 .setConfigBackupDay(7)
-                .setCompleted(false)
-                .setCompletedPathTemplate(completedPathTemplate)
                 .setNotificationTemplate(notificationTemplate)
                 .setNotificationConfigList(new ArrayList<>())
                 .setApiKey(apiKey)
@@ -215,7 +191,6 @@ public class ConfigUtil {
                 .setSortType(AniSortTypeEnum.SCORE)
                 .setTmdbIdPlexMode(false)
                 .setProxyList(proxyList)
-                .setScrape(false)
                 .setFollowDay(14)
                 .setBangumiIniEnabled(false)
                 .setReplace(false)
@@ -223,8 +198,6 @@ public class ConfigUtil {
                 .setLimitLoginAttempts(true)
                 .setReverseProxyTrustIpList(List.of("127.0.0.1"))
                 .setReverseProxyTrustIpListEnabled(false)
-                .setSubtitleIndependentFolderEnabled(false)
-                .setSubtitleIndependentFolderName("Subs")
                 .setBgmApi("https://api.bgm.tv")
                 .setAutoStart(false)
                 .setAllowCors(false)
@@ -292,7 +265,6 @@ public class ConfigUtil {
         format(CONFIG);
         LogUtil.loadLogback();
         log.debug("加载配置文件 {}", configFile);
-        TorrentUtil.loadDownloadTool();
     }
 
     /**
@@ -373,8 +345,7 @@ public class ConfigUtil {
     public static void formatPath(Config config) {
         List<Func1<Config, String>> func1List = List.of(
                 Config::getDownloadPathTemplate,
-                Config::getOvaDownloadPathTemplate,
-                Config::getCompletedPathTemplate
+                Config::getOvaDownloadPathTemplate
         );
 
         DynaBean dynaBean = DynaBean.create(config);

@@ -274,18 +274,6 @@ public class Ani implements Serializable {
     private String customRenameTemplate;
 
     /**
-     * 自定义优先保留开关
-     */
-    @Schema(description = "自定义优先保留开关")
-    private Boolean customPriorityKeywordsEnable;
-
-    /**
-     * 自定义优先保留关键词列表
-     */
-    @Schema(description = "自定义优先保留关键词列表")
-    private List<String> customPriorityKeywords;
-
-    /**
      * 上次下载完成时间
      */
     @Schema(description = "上次下载完成时间")
@@ -310,34 +298,4 @@ public class Ani implements Serializable {
      */
     @Schema(description = "消息通知")
     private Boolean message;
-
-    /**
-     * 完结迁移
-     */
-    @Schema(description = "完结迁移")
-    private Boolean completed;
-
-    /**
-     * 自定义完结迁移
-     */
-    @Schema(description = "自定义完结迁移开关")
-    private Boolean customCompleted;
-
-    /**
-     * 自定义完结迁移
-     */
-    @Schema(description = "自定义完结迁移路径模版")
-    private String customCompletedPathTemplate;
-
-    /**
-     * 自定义标签开关
-     */
-    @Schema(description = "自定义标签开关")
-    private Boolean customTagsEnable;
-
-    /**
-     * 单个订阅自定义标签
-     */
-    @Schema(description = "单个订阅自定义标签")
-    private List<String> customTags;
 }

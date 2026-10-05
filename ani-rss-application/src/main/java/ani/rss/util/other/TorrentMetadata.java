@@ -48,7 +48,7 @@ public final class TorrentMetadata {
     }
 
     /**
-     * 获取供 qBittorrent API 使用的信息哈希。
+     * 获取种子的信息哈希。
      *
      * @return v1 或 hybrid 种子的 SHA-1 哈希；纯 v2 种子的 SHA-256 哈希
      */

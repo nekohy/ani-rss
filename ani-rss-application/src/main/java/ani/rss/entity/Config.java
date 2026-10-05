@@ -45,12 +45,6 @@ public class Config implements Serializable {
     private Boolean tmdbAnime;
 
     /**
-     * 下载工具
-     */
-    @Schema(description = "下载工具类型")
-    private String downloadToolType;
-
-    /**
      * 下载重试次数
      */
     @Schema(description = "下载重试次数")
@@ -63,51 +57,10 @@ public class Config implements Serializable {
     private String downloadToolHost;
 
     /**
-     * 下载工具 用户名
-     */
-    @Schema(description = "下载工具用户名")
-    private String downloadToolUsername;
-
-    /**
      * 下载工具 密码
      */
     @Schema(description = "下载工具密码")
     private String downloadToolPassword;
-
-    /**
-     * qb下载时，使用qb自身的保存路径配置(未下载完成的使用临时目录，复制种子文件)
-     */
-    @Schema(description = "使用 qb 自身保存路径")
-    private Boolean qbUseDownloadPath;
-
-    /**
-     * qb下载时的内容布局
-     * <ul>
-     *   <li>Original：原始布局</li>
-     *   <li>Subfolder：创建子文件夹</li>
-     *   <li>NoSubfolder：不创建子文件夹</li>
-     * </ul>
-     */
-    @Schema(description = "qb 内容布局")
-    private String qbContentLayout;
-
-    /**
-     * 分享率
-     */
-    @Schema(description = "分享率")
-    private Integer ratioLimit;
-
-    /**
-     * 总做种时长
-     */
-    @Schema(description = "总做种时长")
-    private Integer seedingTimeLimit;
-
-    /**
-     * 非活跃时长
-     */
-    @Schema(description = "非活跃时长")
-    private Integer inactiveSeedingTimeLimit;
 
     /**
      * 下载路径
@@ -120,24 +73,6 @@ public class Config implements Serializable {
      */
     @Schema(description = "剧场版下载路径模版")
     private String ovaDownloadPathTemplate;
-
-    /**
-     * 自定义标签
-     */
-    @Schema(description = "自定义标签")
-    private List<String> customTags;
-
-    /*
-     * 优先保留开关
-     */
-    @Schema(description = "优先保留开关")
-    private Boolean priorityKeywordsEnable;
-
-    /**
-     * 优先保留关键词列表
-     */
-    @Schema(description = "优先保留关键词列表")
-    private List<String> priorityKeywords;
 
     /**
      * 校验登录IP
@@ -158,12 +93,6 @@ public class Config implements Serializable {
     private Integer rssSleepMinutes;
 
     /**
-     * 重命名间隔(秒)
-     */
-    @Schema(description = "重命名间隔(秒)")
-    private Integer renameSleepSeconds;
-
-    /**
      * 自动重命名
      */
     @Schema(description = "自动重命名")
@@ -182,28 +111,10 @@ public class Config implements Serializable {
     private Integer rssTimeout;
 
     /**
-     * 文件已下载自动跳过
-     */
-    @Schema(description = "文件已下载自动跳过")
-    private Boolean fileExist;
-
-    /**
-     * 等待做种完毕
-     */
-    @Schema(description = "等待做种完毕")
-    private Boolean awaitStalledUP;
-
-    /**
      * 自动删除已完成任务
      */
     @Schema(description = "自动删除已完成任务")
     private Boolean delete;
-
-    /**
-     * 仅在主RSS更新后删除备用RSS
-     */
-    @Schema(description = "主RSS更新后删除备用RSS")
-    private Boolean deleteStandbyRSSOnly;
 
     /**
      * 自动推断剧集偏移
@@ -288,12 +199,6 @@ public class Config implements Serializable {
      */
     @Schema(description = "代理密码")
     private String proxyPassword;
-
-    /**
-     * 同时下载数量限制
-     */
-    @Schema(description = "同时下载数量限制")
-    private Integer downloadCount;
 
     /**
      * 登录信息
@@ -466,18 +371,6 @@ public class Config implements Serializable {
     private Boolean renameDelTmdbId;
 
     /**
-     * 自动更新 trackers
-     */
-    @Schema(description = "自动更新 trackers")
-    private Boolean autoTrackersUpdate;
-
-    /**
-     * Trackers更新地址
-     */
-    @Schema(description = "Trackers 更新地址")
-    private String trackersUpdateUrls;
-
-    /**
      * 消息模版
      */
     @Schema(description = "消息模版")
@@ -543,18 +436,6 @@ public class Config implements Serializable {
      */
     @Schema(description = "新增订阅自动上传")
     private Boolean upload;
-
-    /**
-     * 上传速度限制
-     */
-    @Schema(description = "上传速度限制")
-    private Long upLimit;
-
-    /**
-     * 下载速度限制
-     */
-    @Schema(description = "下载速度限制")
-    private Long dlLimit;
 
     /**
      * 捐赠过期时间
@@ -625,6 +506,12 @@ public class Config implements Serializable {
     private Long openListDownloadRetryNumber;
 
     /**
+     * OpenList 离线下载目录
+     */
+    @Schema(description = "OpenList 离线下载目录: 保存位置不在 Driver 所在的网盘时, 先离线下载到这里, 再移动到保存位置; 留空则直接下载到保存位置")
+    private String openListOfflinePath;
+
+    /**
      * 设置备份
      */
     @Schema(description = "设置备份")
@@ -635,18 +522,6 @@ public class Config implements Serializable {
      */
     @Schema(description = "备份天数")
     private Integer configBackupDay;
-
-    /**
-     * 番剧完结迁移
-     */
-    @Schema(description = "番剧完结迁移")
-    private Boolean completed;
-
-    /**
-     * 番剧完结迁移位置
-     */
-    @Schema(description = "番剧完结迁移位置")
-    private String completedPathTemplate;
 
     /**
      * 通知
@@ -671,12 +546,6 @@ public class Config implements Serializable {
      */
     @Schema(description = "代理列表")
     private String proxyList;
-
-    /**
-     * 刮削开关
-     */
-    @Schema(description = "刮削开关")
-    private Boolean scrape;
 
     @Schema(description = "追更天数")
     private Integer followDay;
@@ -713,12 +582,6 @@ public class Config implements Serializable {
 
     @Schema(description = "受信任的反向代理IP")
     private List<String> reverseProxyTrustIpList;
-
-    @Schema(description = "启用 字幕独立文件夹")
-    private Boolean subtitleIndependentFolderEnabled;
-
-    @Schema(description = "字幕独立文件夹")
-    private String subtitleIndependentFolderName;
 
     @Schema(description = "bgmApi")
     private String bgmApi;

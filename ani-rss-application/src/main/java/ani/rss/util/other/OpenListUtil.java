@@ -75,9 +75,14 @@ public class OpenListUtil {
                 .body(GsonStatic.toJson(Map.of(
                         "src_dir", srcDir,
                         "dst_dir", dstDir,
-                        "names", names
+                        "names", names,
+                        "overwrite", true
                 )))
-                .then(res -> log.info(res.body()));
+                .then(res -> {
+                    HttpReq.assertStatus(res);
+                    JsonObject jsonObject = GsonStatic.fromJson(res.body(), JsonObject.class);
+                    Assert.isTrue(jsonObject.get("code").getAsInt() == 200, "移动 {}/{} 到 {} 失败: {}", srcDir, names, dstDir, jsonObject.get("message"));
+                });
     }
 
     /**
@@ -145,41 +150,54 @@ public class OpenListUtil {
      */
     public List<OpenListFileInfo> fsList(String path, Boolean refresh) {
         try {
-            return postApi("fs/list")
-                    .body(GsonStatic.toJson(Map.of(
-                            "path", path,
-                            "page", 1,
-                            "per_page", 0,
-                            "refresh", refresh
-                    )))
-                    .thenFunction(res -> {
-                        JsonObject jsonObject = GsonStatic.fromJson(res.body(), JsonObject.class);
-                        int code = jsonObject.get("code").getAsInt();
-                        if (code != 200) {
-                            return List.of();
-                        }
-                        JsonElement data = jsonObject.get("data");
-                        if (Objects.isNull(data) || data.isJsonNull()) {
-                            return List.of();
-                        }
-                        JsonElement content = data.getAsJsonObject()
-                                .get("content");
-                        if (Objects.isNull(content) || content.isJsonNull()) {
-                            return List.of();
-                        }
-                        List<OpenListFileInfo> infos = GsonStatic.fromJsonList(content.getAsJsonArray(), OpenListFileInfo.class);
-                        for (OpenListFileInfo info : infos) {
-                            info.setPath(path);
-                        }
-                        return ListUtil.sort(new ArrayList<>(infos), Comparator.comparing(fileInfo -> {
-                            Long size = fileInfo.getSize();
-                            return Long.MAX_VALUE - ObjectUtil.defaultIfNull(size, 0L);
-                        }));
-                    });
+            return list(path, refresh);
         } catch (Exception e) {
-            log.error(e.getMessage(), e);
+            log.warn(e.getMessage());
         }
         return List.of();
+    }
+
+    /**
+     * 实时列出目录 (refresh), 失败时抛出异常
+     *
+     * @param path 目录
+     * @return 文件列表
+     */
+    public List<OpenListFileInfo> list(String path) {
+        return list(path, true);
+    }
+
+    private List<OpenListFileInfo> list(String path, Boolean refresh) {
+        return postApi("fs/list")
+                .body(GsonStatic.toJson(Map.of(
+                        "path", path,
+                        "page", 1,
+                        "per_page", 0,
+                        "refresh", refresh
+                )))
+                .thenFunction(res -> {
+                    HttpReq.assertStatus(res);
+                    JsonObject jsonObject = GsonStatic.fromJson(res.body(), JsonObject.class);
+                    int code = jsonObject.get("code").getAsInt();
+                    Assert.isTrue(code == 200, "列出 {} 失败: {}", path, jsonObject.get("message"));
+                    JsonElement data = jsonObject.get("data");
+                    if (Objects.isNull(data) || data.isJsonNull()) {
+                        return List.of();
+                    }
+                    JsonElement content = data.getAsJsonObject()
+                            .get("content");
+                    if (Objects.isNull(content) || content.isJsonNull()) {
+                        return List.of();
+                    }
+                    List<OpenListFileInfo> infos = GsonStatic.fromJsonList(content.getAsJsonArray(), OpenListFileInfo.class);
+                    for (OpenListFileInfo info : infos) {
+                        info.setPath(path);
+                    }
+                    return ListUtil.sort(new ArrayList<>(infos), Comparator.comparing(fileInfo -> {
+                        Long size = fileInfo.getSize();
+                        return Long.MAX_VALUE - ObjectUtil.defaultIfNull(size, 0L);
+                    }));
+                });
     }
 
     /**
@@ -283,7 +301,7 @@ public class OpenListUtil {
      * @return 文件列表
      */
     public List<OpenListFileInfo> findFiles(String path) {
-        List<OpenListFileInfo> openListFileInfos = fsList(path, true);
+        List<OpenListFileInfo> openListFileInfos = list(path);
         List<OpenListFileInfo> list = openListFileInfos.stream()
                 .flatMap(openListFileInfo -> {
                     if (openListFileInfo.getIsDir()) {

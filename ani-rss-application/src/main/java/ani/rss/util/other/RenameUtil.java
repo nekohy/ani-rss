@@ -108,6 +108,11 @@ public class RenameUtil {
         String bgmId = BgmUtil.getSubjectId(ani);
         renameTemplate = renameTemplate.replace("${bgmId}", bgmId);
 
+        renameTemplate = BgmUtil.replaceShow(renameTemplate, ani);
+        if (renameTemplate.contains("${bgmEpisode}")) {
+            renameTemplate = renameTemplate.replace("${bgmEpisode}", BgmUtil.getSortFormat(ani, episode));
+        }
+
         if (renameTemplate.contains("${jpTitle}")) {
             String jpTitle = getJpTitle(ani);
             renameTemplate = renameTemplate.replace("${jpTitle}", jpTitle);

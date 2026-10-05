@@ -48,12 +48,5 @@ export let aniData = {
     "lastDownloadTime": 0,
     "message": true,
     "customUploadEnable": false,
-    "customUploadPathTarget": "",
-    "completed": true,
-    "customCompleted": false,
-    "customCompletedPathTemplate": "",
-    "customTags": [],
-    "customTagsEnable": false,
-    "customPriorityKeywordsEnable": false,
-    "customPriorityKeywords": []
+    "customUploadPathTarget": ""
 }

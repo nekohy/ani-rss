@@ -2,15 +2,6 @@
   <SettingsItem label="自动重命名">
     <el-switch v-model:model-value="props.config.rename"/>
   </SettingsItem>
-  <SettingsItem label="重命名间隔">
-    <el-input-number v-model:model-value="props.config['renameSleepSeconds']"
-                     :disabled="!config.rename"
-                     :min="5">
-      <template #suffix>
-        <span>秒</span>
-      </template>
-    </el-input-number>
-  </SettingsItem>
   <SettingsItem label="最大文件名长度">
     <el-input-number v-model:model-value="props.config.maxFileNameLength" :min="0"/>
   </SettingsItem>
@@ -58,17 +49,6 @@
       <br>
       <el-text class="mx-1" size="small">
         重命名时剔除 tmdbid, 如 [tmdbid=242143]
-      </el-text>
-    </div>
-  </SettingsItem>
-  <SettingsItem label="字幕独立文件夹">
-    <div>
-      <el-switch v-model:model-value="props.config.subtitleIndependentFolderEnabled"/>
-      <br>
-      <el-input v-model="config.subtitleIndependentFolderName"/>
-      <br>
-      <el-text class="mx-1" size="small">
-        仅支持 qBittorrent
       </el-text>
     </div>
   </SettingsItem>
