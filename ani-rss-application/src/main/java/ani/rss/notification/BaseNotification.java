@@ -22,8 +22,27 @@ import wushuo.tmdb.api.entity.Tmdb;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public interface BaseNotification {
+
+    Pattern PATH_SLICE = Pattern.compile("\\$\\{downloadPath\\[(-?\\d*)(:?)(-?\\d*)]}");
+
+    private static String slice(String path, String start, boolean range, String end) {
+        List<String> parts = StrUtil.split(path, "/", true, true);
+        int n = parts.size();
+        if (!range && !start.isEmpty()) {
+            int i = Integer.parseInt(start);
+            i = i < 0 ? i + n : i;
+            return i >= 0 && i < n ? parts.get(i) : "";
+        }
+        int from = start.isEmpty() ? 0 : Integer.parseInt(start);
+        int to = end.isEmpty() ? n : Integer.parseInt(end);
+        from = Math.clamp(from < 0 ? from + n : from, 0, n);
+        to = Math.clamp(to < 0 ? to + n : to, 0, n);
+        return from < to ? String.join("/", parts.subList(from, to)) : "";
+    }
 
     /**
      * 测试
@@ -150,6 +169,9 @@ public interface BaseNotification {
 
         DownloadService downloadService = SpringUtil.getBean(DownloadService.class);
         String downloadPath = downloadService.getDownloadPath(ani);
+        // ${downloadPath[1:]} ${downloadPath[-1]}: 按 / 分段, 同 Python 的下标和切片
+        notificationTemplate = PATH_SLICE.matcher(notificationTemplate).replaceAll(m ->
+                Matcher.quoteReplacement(slice(downloadPath, m.group(1), !m.group(2).isEmpty(), m.group(3))));
         notificationTemplate = notificationTemplate.replace("${downloadPath}", downloadPath);
 
         if (notificationTemplate.contains("${jpTitle}")) {
