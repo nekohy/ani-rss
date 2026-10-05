@@ -181,7 +181,6 @@ public class ConfigUtil {
                 .setForceUpdateTotalEpisodeNumber(false)
                 .setOpenListDownloadTimeout(60)
                 .setOpenListDownloadRetryNumber(5L)
-                .setOpenListOfflinePath("")
                 .setConfigBackup(false)
                 .setConfigBackupDay(7)
                 .setNotificationTemplate(notificationTemplate)

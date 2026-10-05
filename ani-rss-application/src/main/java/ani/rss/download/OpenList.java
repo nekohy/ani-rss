@@ -28,7 +28,6 @@ import java.util.stream.Stream;
 
 /**
  * OpenList 离线下载: 下载到季目录, 新文件靠下载前后各列一次目录找出, 原地改名, 种子带的文件夹移出后删除。
- * 设置了离线下载目录时在其中每集一个文件夹里做这些, 再移到保存位置。
  */
 @Slf4j
 @Service
@@ -70,25 +69,17 @@ public class OpenList {
 
 
     /**
-     * OpenList 的离线下载和移动任务
+     * OpenList 的离线下载任务
      */
     public List<OpenListTaskInfo> tasks() {
-        List<OpenListTaskInfo> tasks = new ArrayList<>();
-        for (String type : List.of("offline_download", "move")) {
-            for (String status : List.of("undone", "done")) {
-                tasks.addAll(openListUtil.taskList(type, status));
-            }
-        }
+        List<OpenListTaskInfo> tasks = new ArrayList<>(openListUtil.taskUnDoneList());
+        tasks.addAll(openListUtil.taskDoneList());
         return tasks;
     }
 
     public Boolean download(Ani ani, Item item, String savePath, File torrentFile) {
         // windows 真该死啊
         savePath = ReUtil.replaceAll(savePath, "^[A-z]:", "");
-
-        // 离线下载目录, 未设置时就是保存位置
-        String stage = StrUtil.removeSuffix(StrUtil.trim(CONFIG.getOpenListOfflinePath()), "/");
-        stage = StrUtil.isBlank(stage) ? savePath : ReUtil.replaceAll(stage, "^[A-z]:", "");
 
         String magnet = TorrentUtil.getMagnet(torrentFile);
         String reName = item.getReName();
@@ -97,17 +88,11 @@ public class OpenList {
         // 洗版: 开启备用RSS、自动删除且不共存时替换已有的这一集, 否则跳过
         boolean replace = CONFIG.getStandbyRss() && delete && !CONFIG.getCoexist();
         try {
-            List<OpenListFileInfo> existing;
-            if (stage.equals(savePath)) {
-                openListUtil.mkdir(savePath);
-                existing = openListUtil.list(savePath);
-            } else {
-                // 保存位置在别的网盘, 移动时再创建 (OneDrive 会限流)
-                existing = openListUtil.listIfExists(savePath);
-            }
+            openListUtil.mkdir(savePath);
+            List<OpenListFileInfo> before = openListUtil.list(savePath);
 
             // 已有的这一集 reName.*
-            List<String> versions = rename ? existing.stream()
+            List<String> versions = rename ? before.stream()
                     .filter(fileInfo -> !fileInfo.getIsDir())
                     .map(OpenListFileInfo::getName)
                     .filter(name -> name.startsWith(reName + "."))
@@ -117,20 +102,12 @@ public class OpenList {
                 return true;
             }
 
-            List<OpenListFileInfo> before = existing;
-            String offlineDir = stage;
-            if (!stage.equals(savePath)) {
-                stage = stage + "/" + reName;
-                openListUtil.mkdir(stage);
-                before = List.of();
-            }
-
             // 删除残留任务
             openListUtil.deleteResidualTasks(magnet);
 
             String tid;
             try {
-                tid = openListUtil.fsAddOfflineDownload(magnet, stage, CONFIG.getProvider());
+                tid = openListUtil.fsAddOfflineDownload(magnet, savePath, CONFIG.getProvider());
                 log.info("添加离线下载成功 {}", reName);
             } catch (Exception e) {
                 log.error("添加离线下载失败 {}", reName);
@@ -181,7 +158,7 @@ public class OpenList {
                         if (retry >= openListDownloadRetryNumber) {
                             // bug fix: 新资源下载完成后，OpenList 状态可能未及时刷新
                             // 此处通过检查文件是否存在来兜底，存在则直接继续后续逻辑
-                            boolean downloaded = files(stage, added(stage, before))
+                            boolean downloaded = files(savePath, added(savePath, before))
                                     .stream()
                                     .anyMatch(fileInfo -> FileUtils.isVideoFormat(fileInfo.getName()));
                             if (downloaded) {
@@ -220,8 +197,8 @@ public class OpenList {
             }
 
             // 这次下载新出现的文件和文件夹
-            List<OpenListFileInfo> added = added(stage, before);
-            List<OpenListFileInfo> files = files(stage, added);
+            List<OpenListFileInfo> added = added(savePath, before);
+            List<OpenListFileInfo> files = files(savePath, added);
 
             // 取大小最大的一个视频文件
             Optional<OpenListFileInfo> videoFileOpt = files.stream()
@@ -247,8 +224,8 @@ public class OpenList {
                 log.info("重命名 {} ==> {}", videoFile.getName(), target);
                 openListUtil.fsBatchRename(List.of(Map.of("src_name", videoFile.getName(), "new_name", target)), dir);
             }
-            if (!dir.equals(stage)) {
-                openListUtil.fsMove(dir, stage, List.of(target));
+            if (!dir.equals(savePath)) {
+                openListUtil.fsMove(dir, savePath, List.of(target));
             }
 
             // 删除种子带来的文件夹和其余文件
@@ -257,28 +234,8 @@ public class OpenList {
                     .map(OpenListFileInfo::getName)
                     .toList();
             if (!residual.isEmpty()) {
-                log.info("删除残留 {}/{}", stage, residual);
-                openListUtil.fsRemove(stage, residual);
-            }
-
-            // 移到保存位置, 等 OpenList 的移动任务结束后删除这一集的文件夹
-            if (!stage.equals(savePath)) {
-                String error;
-                try {
-                    openListUtil.mkdir(savePath);
-                    List<String> tids = openListUtil.fsMove(stage, savePath, List.of(target));
-                    log.info("移动 {}/{} ==> {}", stage, target, savePath);
-                    error = awaitMove(tids);
-                } catch (Exception e) {
-                    error = e.getMessage();
-                }
-                if (Objects.nonNull(error)) {
-                    String message = StrFormatter.format("{} 已下载到 {}, 移动到 {} 失败: {}", reName, stage, savePath, error);
-                    log.error(message);
-                    NotificationUtil.send(CONFIG, ani, message, NotificationStatusEnum.ERROR);
-                    return true;
-                }
-                openListUtil.fsRemove(offlineDir, List.of(reName));
+                log.info("删除残留 {}/{}", savePath, residual);
+                openListUtil.fsRemove(savePath, residual);
             }
 
             NotificationUtil.send(CONFIG, ani,
@@ -290,32 +247,6 @@ public class OpenList {
             log.error(e.getMessage(), e);
         }
         return false;
-    }
-
-    /**
-     * 等移动任务结束, 返回失败原因, 都成功时为 null
-     */
-    private String awaitMove(List<String> tids) {
-        DateTime endTime = DateUtil.offsetMinute(DateTime.now(), CONFIG.getOpenListDownloadTimeout());
-        for (String tid : tids) {
-            while (true) {
-                if (DateTime.now().isAfter(endTime)) {
-                    return CONFIG.getOpenListDownloadTimeout() + " 分钟还未移完";
-                }
-                Optional<OpenListTaskInfo> taskInfoOpt = openListUtil.taskInfo("move", tid);
-                if (taskInfoOpt.isEmpty()) {
-                    continue;
-                }
-                OpenListTaskInfo.State state = taskInfoOpt.get().getState();
-                if (state == OpenListTaskInfo.State.Succeeded) {
-                    break;
-                }
-                if (List.of(OpenListTaskInfo.State.Failed, OpenListTaskInfo.State.Canceled).contains(state)) {
-                    return StrUtil.blankToDefault(taskInfoOpt.get().getError(), state.name());
-                }
-            }
-        }
-        return null;
     }
 
     /**

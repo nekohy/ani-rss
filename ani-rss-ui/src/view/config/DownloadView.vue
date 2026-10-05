@@ -43,14 +43,6 @@
           <el-option v-for="it in offlineList" :key="it.label" :label="it.label" :value="it.value"/>
         </el-select>
       </SettingsItem>
-      <SettingsItem label="离线下载目录">
-        <div class="full-width">
-          <el-input v-model.trim="props.config['openListOfflinePath']" placeholder="留空则直接下载到保存位置"/>
-          <el-text class="mx-1" size="small">
-            保存位置在别的网盘时填写, 如 /115/花月/offline
-          </el-text>
-        </div>
-      </SettingsItem>
       <SettingsItem label="重试次数">
         <div>
           <el-input-number v-model="props.config['openListDownloadRetryNumber']" :min="-1"/>

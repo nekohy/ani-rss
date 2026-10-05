@@ -59,7 +59,7 @@
         <el-empty v-if="!activeTasks.length" :description="emptyDescription" class="torrents-empty"/>
         <el-scrollbar v-else class="torrents-scrollbar">
           <el-card v-for="task in activeTasks"
-                   :key="task.type + task.id"
+                   :key="task.id"
                    shadow="never"
                    class="torrents-card">
             <p>{{ task.title }}</p>
@@ -77,9 +77,7 @@
             <template #footer>
               <div class="flex torrents-footer">
                 <div>
-                  <el-tag class="torrents-tag-spacer" type="info">
-                    {{ task.type === 'move' ? '移动' : '离线下载' }}
-                  </el-tag>
+                  <el-tag class="torrents-tag-spacer" type="info">离线下载</el-tag>
                 </div>
                 <div>
                   <el-tag class="torrents-tag-spacer" :type="stateType(task)">
@@ -154,26 +152,19 @@ const stateLabel = task => STATES[task.state]?.[0] || task.state
 const stateType = task => STATES[task.state]?.[1] || 'info'
 const progressStatus = task => task.state === 'Succeeded' ? 'success' : (task.error ? 'exception' : '')
 
-// download magnet:?xt=... to (/115/花月/offline/xx E01)
+// download magnet:?xt=... to (/115/花月/Anime/xx/Season 1)
 const DOWNLOAD_REG = /^download (.+) to \((.+)\)$/
-// move [/115](/花月/offline/xx E01/xx E01.mkv) to [/onedrive](/花月/Anime/...)
-const MOVE_REG = /^move \[(.*?)]\((.*?)\) to \[(.*?)]\((.*?)\)$/
-
-const baseName = path => path.replace(/\/+$/, '').split('/').pop() || path
 
 /**
- * 任务名拆成标题和详情, 补上大小和进度
+ * 任务名拆成标题 (番剧/季) 和详情 (保存位置), 补上大小和进度
  */
 const toTask = info => {
   let title = info.name
   let detail = ''
-  let m = DOWNLOAD_REG.exec(info.name)
+  const m = DOWNLOAD_REG.exec(info.name)
   if (m) {
-    title = baseName(m[2])
+    title = m[2].split('/').filter(Boolean).slice(-2).join(' / ')
     detail = m[2]
-  } else if ((m = MOVE_REG.exec(info.name))) {
-    title = baseName(m[2])
-    detail = `→ ${(m[3] + m[4]).replace(/\/+/g, '/')}`
   }
   const percentage = Math.min(100, Math.round((Number(info.progress) || 0) * 10) / 10)
   const size = Number(info.totalBytes)

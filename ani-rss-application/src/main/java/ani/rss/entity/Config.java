@@ -506,12 +506,6 @@ public class Config implements Serializable {
     private Long openListDownloadRetryNumber;
 
     /**
-     * OpenList 离线下载目录
-     */
-    @Schema(description = "OpenList 离线下载目录, 保存位置在别的网盘时使用")
-    private String openListOfflinePath;
-
-    /**
      * 设置备份
      */
     @Schema(description = "设置备份")

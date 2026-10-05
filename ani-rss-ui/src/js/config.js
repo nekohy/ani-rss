@@ -87,7 +87,6 @@ export let configData = {
     "forceUpdateTotalEpisodeNumber": false,
     "openListDownloadTimeout": 60,
     "openListDownloadRetryNumber": 5,
-    "openListOfflinePath": "",
     "configBackup": false,
     "configBackupDay": 7,
     "notificationConfigList": [],

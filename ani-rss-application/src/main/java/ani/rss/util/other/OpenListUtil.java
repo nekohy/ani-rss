@@ -72,26 +72,18 @@ public class OpenListUtil {
      * @param names  文件名
      * @return 移动任务 (跨网盘时才有)
      */
-    public List<String> fsMove(String srcDir, String dstDir, List<String> names) {
-        return postApi("fs/move")
+    public void fsMove(String srcDir, String dstDir, List<String> names) {
+        postApi("fs/move")
                 .body(GsonStatic.toJson(Map.of(
                         "src_dir", srcDir,
                         "dst_dir", dstDir,
                         "names", names,
                         "overwrite", true
                 )))
-                .thenFunction(res -> {
+                .then(res -> {
                     HttpReq.assertStatus(res);
                     JsonObject jsonObject = GsonStatic.fromJson(res.body(), JsonObject.class);
                     Assert.isTrue(jsonObject.get("code").getAsInt() == 200, "移动 {}/{} 到 {} 失败: {}", srcDir, names, dstDir, jsonObject.get("message"));
-                    List<String> tids = new ArrayList<>();
-                    JsonElement data = jsonObject.get("data");
-                    if (Objects.nonNull(data) && data.isJsonObject() && data.getAsJsonObject().has("tasks")) {
-                        for (JsonElement task : data.getAsJsonObject().getAsJsonArray("tasks")) {
-                            tids.add(task.getAsJsonObject().get("id").getAsString());
-                        }
-                    }
-                    return tids;
                 });
     }
 
@@ -177,23 +169,6 @@ public class OpenListUtil {
         return list(path, true);
     }
 
-    /**
-     * 实时列出目录 (refresh), 目录不存在时为空, 其他失败时抛出异常
-     *
-     * @param path 目录
-     * @return 文件列表
-     */
-    public List<OpenListFileInfo> listIfExists(String path) {
-        try {
-            return list(path);
-        } catch (IllegalArgumentException e) {
-            if (StrUtil.contains(e.getMessage(), "object not found")) {
-                return List.of();
-            }
-            throw e;
-        }
-    }
-
     private List<OpenListFileInfo> list(String path, Boolean refresh) {
         return postApi("fs/list")
                 .body(GsonStatic.toJson(Map.of(
@@ -234,19 +209,8 @@ public class OpenListUtil {
      * @return 任务信息
      */
     public Optional<OpenListTaskInfo> taskInfo(String tid) {
-        return taskInfo("offline_download", tid);
-    }
-
-    /**
-     * 获取任务信息
-     *
-     * @param type offline_download (离线下载), move (移动) ...
-     * @param tid  任务id
-     * @return 任务信息
-     */
-    public Optional<OpenListTaskInfo> taskInfo(String type, String tid) {
         try {
-            OpenListTaskInfo taskInfo = postApi("task/" + type + "/info?tid=" + tid)
+            OpenListTaskInfo taskInfo = postApi("task/offline_download/info?tid=" + tid)
                     .thenFunction(res -> {
                         JsonObject jsonObject = GsonStatic.fromJson(res.body(), JsonObject.class);
                         JsonObject data = jsonObject.get("data").getAsJsonObject();
@@ -288,7 +252,7 @@ public class OpenListUtil {
      * @return 任务列表
      */
     public List<OpenListTaskInfo> taskUnDoneList() {
-        return taskList("offline_download", "undone");
+        return taskList("undone");
     }
 
     /**
@@ -297,18 +261,17 @@ public class OpenListUtil {
      * @return 任务列表
      */
     public List<OpenListTaskInfo> taskDoneList() {
-        return taskList("offline_download", "done");
+        return taskList("done");
     }
 
     /**
-     * 任务列表, 只读 OpenList 自己的任务, 不用限速
+     * 离线任务列表, 不用限速
      *
-     * @param type   offline_download (离线下载), move (移动) ...
      * @param status undone, done
      * @return 任务列表
      */
-    public List<OpenListTaskInfo> taskList(String type, String status) {
-        return HttpReq.get(openListConfig.getServer() + "/api/task/" + type + "/" + status)
+    private List<OpenListTaskInfo> taskList(String status) {
+        return HttpReq.get(openListConfig.getServer() + "/api/task/offline_download/" + status)
                 .header(Header.AUTHORIZATION, openListConfig.getApiKey())
                 .thenFunction(res -> {
                     HttpReq.assertStatus(res);
@@ -319,7 +282,7 @@ public class OpenListUtil {
                         return new ArrayList<>();
                     }
                     List<OpenListTaskInfo> list = GsonStatic.fromJsonList(data.getAsJsonArray(), OpenListTaskInfo.class);
-                    list.forEach(it -> it.setType(type).setDone("done".equals(status)));
+                    list.forEach(it -> it.setDone("done".equals(status)));
                     return list;
                 });
     }

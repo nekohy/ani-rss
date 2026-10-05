@@ -46,9 +46,6 @@ public class OpenListTaskInfo implements Serializable {
     @Schema(description = "错误信息")
     private String error;
 
-    @Schema(description = "任务类型: offline_download 离线下载, move 移动")
-    private String type;
-
     @Schema(description = "是否已结束 (成功, 失败, 取消)")
     private Boolean done;
 
