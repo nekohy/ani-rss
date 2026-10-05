@@ -23,7 +23,6 @@ import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.util.*;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -36,14 +35,6 @@ import java.util.stream.Stream;
 @RequiredArgsConstructor
 public class OpenList {
     private static final Config CONFIG = ConfigUtil.CONFIG;
-
-    private static final String LANG = "(?:sc|tc|chs|cht|gb|big5|zh|chi|zho|hans|hant|cn|tw|hk|jp|ja|jpn|en|eng)";
-    /**
-     * 字幕的语言标记: sc, tcjp, chs_jp, zh-Hans ... (不含 WEB-DL, AAC)
-     */
-    private static final Pattern LANG_REG = Pattern.compile("^" + LANG + "(?:[-_&]?" + LANG + ")*$", Pattern.CASE_INSENSITIVE);
-    private static final Pattern SC_REG = Pattern.compile("简|chs|\\bsc\\b|\\bGB\\b", Pattern.CASE_INSENSITIVE);
-    private static final Pattern TC_REG = Pattern.compile("繁|cht|\\btc\\b|BIG5", Pattern.CASE_INSENSITIVE);
 
     private final OpenListUtil openListUtil = OpenListUtil.getInstance(new OpenListConfig() {
         @Override
@@ -115,7 +106,7 @@ public class OpenList {
                 existing = openListUtil.listIfExists(savePath);
             }
 
-            // 已有的这一集: 视频和字幕 reName.*
+            // 已有的这一集 reName.*
             List<String> versions = rename ? existing.stream()
                     .filter(fileInfo -> !fileInfo.getIsDir())
                     .map(OpenListFileInfo::getName)
@@ -242,11 +233,7 @@ public class OpenList {
                 return false;
             }
             OpenListFileInfo videoFile = videoFileOpt.get();
-            List<OpenListFileInfo> subtitleList = files.stream()
-                    .filter(fileInfo -> FileUtils.isSubtitleFormat(fileInfo.getName()))
-                    .toList();
-
-            Map<OpenListFileInfo, String> targets = targets(rename ? reName : null, videoFile, subtitleList);
+            String target = rename ? reName + "." + FileUtil.extName(videoFile.getName()) : videoFile.getName();
 
             // 洗版, 删除已有的这一集
             if (!versions.isEmpty()) {
@@ -254,33 +241,19 @@ public class OpenList {
                 openListUtil.fsRemove(savePath, versions);
             }
 
-            // 在各自的目录里改名, 再移到季目录
-            Map<String, List<OpenListFileInfo>> dirs = targets.keySet()
-                    .stream()
-                    .collect(Collectors.groupingBy(OpenListFileInfo::getPath, LinkedHashMap::new, Collectors.toList()));
-            for (Map.Entry<String, List<OpenListFileInfo>> entry : dirs.entrySet()) {
-                String dir = entry.getKey();
-                List<OpenListFileInfo> list = entry.getValue();
-                List<Map<String, String>> renameObjects = list.stream()
-                        .filter(fileInfo -> !fileInfo.getName().equals(targets.get(fileInfo)))
-                        .map(fileInfo -> {
-                            log.info("重命名 {} ==> {}", fileInfo.getName(), targets.get(fileInfo));
-                            return Map.of(
-                                    "src_name", fileInfo.getName(),
-                                    "new_name", targets.get(fileInfo)
-                            );
-                        }).toList();
-                if (!renameObjects.isEmpty()) {
-                    openListUtil.fsBatchRename(renameObjects, dir);
-                }
-                if (!dir.equals(stage)) {
-                    openListUtil.fsMove(dir, stage, list.stream().map(targets::get).toList());
-                }
+            // 改名, 在种子带的文件夹里时移到季目录
+            String dir = videoFile.getPath();
+            if (!videoFile.getName().equals(target)) {
+                log.info("重命名 {} ==> {}", videoFile.getName(), target);
+                openListUtil.fsBatchRename(List.of(Map.of("src_name", videoFile.getName(), "new_name", target)), dir);
+            }
+            if (!dir.equals(stage)) {
+                openListUtil.fsMove(dir, stage, List.of(target));
             }
 
             // 删除种子带来的文件夹和其余文件
             List<String> residual = added.stream()
-                    .filter(fileInfo -> fileInfo.getIsDir() || !targets.containsKey(fileInfo))
+                    .filter(fileInfo -> !fileInfo.equals(videoFile))
                     .map(OpenListFileInfo::getName)
                     .toList();
             if (!residual.isEmpty()) {
@@ -290,12 +263,11 @@ public class OpenList {
 
             // 移到保存位置, 等 OpenList 的移动任务结束后删除这一集的文件夹
             if (!stage.equals(savePath)) {
-                List<String> names = List.copyOf(targets.values());
                 String error;
                 try {
                     openListUtil.mkdir(savePath);
-                    List<String> tids = openListUtil.fsMove(stage, savePath, names);
-                    log.info("移动 {}/{} ==> {}", stage, names, savePath);
+                    List<String> tids = openListUtil.fsMove(stage, savePath, List.of(target));
+                    log.info("移动 {}/{} ==> {}", stage, target, savePath);
                     error = awaitMove(tids);
                 } catch (Exception e) {
                     error = e.getMessage();
@@ -368,51 +340,5 @@ public class OpenList {
                         openListUtil.findFiles(savePath + "/" + fileInfo.getName()).stream() :
                         Stream.of(fileInfo))
                 .toList();
-    }
-
-    /**
-     * 文件 -> 新名字: 视频 reName.ext, 字幕 reName.语言.ext; reName 为 null 时保留原名
-     */
-    private static Map<OpenListFileInfo, String> targets(String reName, OpenListFileInfo videoFile, List<OpenListFileInfo> subtitleList) {
-        Map<OpenListFileInfo, String> targets = new LinkedHashMap<>();
-        if (Objects.isNull(reName)) {
-            targets.put(videoFile, videoFile.getName());
-            subtitleList.forEach(fileInfo -> targets.put(fileInfo, fileInfo.getName()));
-            return targets;
-        }
-        targets.put(videoFile, reName + "." + FileUtil.extName(videoFile.getName()));
-
-        Map<OpenListFileInfo, String> subtitles = new LinkedHashMap<>();
-        for (OpenListFileInfo fileInfo : subtitleList) {
-            String lang = subtitleLang(fileInfo.getName());
-            subtitles.put(fileInfo, reName + (lang.isEmpty() ? "" : "." + lang) + "." + FileUtil.extName(fileInfo.getName()));
-        }
-        // 同一个语言标记出现两次 (chs, chs_annotated) 时保留各自原来的后缀
-        String own = FileUtil.mainName(videoFile.getName()) + ".";
-        subtitles.forEach((fileInfo, target) -> {
-            if (Collections.frequency(subtitles.values(), target) > 1) {
-                String name = fileInfo.getName();
-                target = reName + "." + (name.startsWith(own) ? name.substring(own.length()) : name);
-            }
-            targets.put(fileInfo, target);
-        });
-        return targets;
-    }
-
-    /**
-     * 字幕的语言标记, 没有时为空
-     */
-    private static String subtitleLang(String name) {
-        String stem = FileUtil.mainName(name);
-        String tag = FileUtil.extName(stem);
-        if (StrUtil.isNotBlank(tag) && LANG_REG.matcher(tag).matches()) {
-            return tag;
-        }
-        boolean sc = SC_REG.matcher(stem).find();
-        boolean tc = TC_REG.matcher(stem).find();
-        if (sc && tc) {
-            return "zh";
-        }
-        return sc ? "chs" : tc ? "cht" : "";
     }
 }
